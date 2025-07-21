@@ -4,6 +4,7 @@ export interface Customer {
   email?: string;
   phone?: string;
   address?: string;
+  currency: string;
   amountDue: number;
   createdAt: Date;
 }
@@ -18,9 +19,13 @@ export interface Invoice {
   currency: string;
   balance: number;
   status: 'pending' | 'partially_paid' | 'paid';
-  dueDate: Date;
   createdAt: Date;
   items?: InvoiceItem[];
+}
+
+export interface SelectedInvoice {
+  invoiceId: string;
+  allocatedAmount: number;
 }
 
 export interface InvoiceItem {
@@ -40,5 +45,13 @@ export interface Payment {
   amount: number;
   allocatedAmount: number;
   remainingAmount: number;
+  createdAt: Date;
+}
+
+export interface PaymentAllocation {
+  id: string;
+  paymentId: string;
+  invoiceId: string;
+  allocatedAmount: number;
   createdAt: Date;
 }

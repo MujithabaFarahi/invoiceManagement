@@ -1,26 +1,31 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider } from '@/components/theme-provider';
 import Layout from '@/components/Layout';
-import './App.css';
+import LoginPage from './Pages/LoginPage';
 import Dashboard from './Pages/Dashboard';
 import Customers from './Pages/Customer';
 import Invoices from './Pages/Invoices';
 import Payments from './Pages/Payments';
+import './App.css';
+import { ProtectedRoute } from './Config/ProtectedRoutes';
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="light" storageKey="invoice-theme">
-      <Router>
-        <Layout>
-          <Routes>
+    <Router>
+      <Routes>
+        {/* Public route without layout */}
+        <Route path="/login" element={<LoginPage />} />
+
+        {/* Routes that share the Layout */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/payments" element={<Payments />} />
-          </Routes>
-        </Layout>
-      </Router>
-    </ThemeProvider>
+          </Route>
+        </Route>
+      </Routes>
+    </Router>
   );
 }
 

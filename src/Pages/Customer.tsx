@@ -41,8 +41,16 @@ import {
   deleteCustomer,
 } from '@/Config/firestore';
 import type { Customer } from '@/Config/types';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export default function Customers() {
+  const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -51,6 +59,7 @@ export default function Customers() {
     email: '',
     phone: '',
     address: '',
+    currency: 'USD',
   });
 
   useEffect(() => {
@@ -79,6 +88,7 @@ export default function Customers() {
     }
 
     try {
+      setLoading(true);
       if (editingCustomer) {
         await updateCustomer(editingCustomer.id, formData);
         toast.success('Success', {
@@ -97,12 +107,20 @@ export default function Customers() {
 
       setIsDialogOpen(false);
       setEditingCustomer(null);
-      setFormData({ name: '', email: '', phone: '', address: '' });
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+        currency: 'USD',
+      });
       fetchCustomers();
     } catch (error) {
       toast.error('Error', {
         description: 'Failed to save customer',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -113,6 +131,7 @@ export default function Customers() {
       email: customer.email || '',
       phone: customer.phone || '',
       address: customer.address || '',
+      currency: customer.currency || 'USD',
     });
     setIsDialogOpen(true);
   };
@@ -135,7 +154,7 @@ export default function Customers() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Customers</h1>
           <p className="text-muted-foreground">Manage your customer database</p>
@@ -144,9 +163,16 @@ export default function Customers() {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button
+              className="min-w-36"
               onClick={() => {
                 setEditingCustomer(null);
-                setFormData({ name: '', email: '', phone: '', address: '' });
+                setFormData({
+                  name: '',
+                  email: '',
+                  phone: '',
+                  address: '',
+                  currency: 'USD',
+                });
               }}
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -191,6 +217,24 @@ export default function Customers() {
                   />
                 </div>
                 <div className="grid gap-2">
+                  <Label htmlFor="currency">Currency</Label>
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, currency: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="JPY">JPY</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
                   <Label htmlFor="phone">Phone</Label>
                   <Input
                     id="phone"
@@ -201,6 +245,7 @@ export default function Customers() {
                     placeholder="Phone number"
                   />
                 </div>
+
                 <div className="grid gap-2">
                   <Label htmlFor="address">Address</Label>
                   <Textarea
@@ -214,7 +259,7 @@ export default function Customers() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">
+                <Button type="submit" isLoading={loading}>
                   {editingCustomer ? 'Update Customer' : 'Add Customer'}
                 </Button>
               </DialogFooter>

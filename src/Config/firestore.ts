@@ -10,14 +10,25 @@ import {
   orderBy,
   writeBatch,
   getDoc,
+  QueryDocumentSnapshot,
+  type DocumentData,
+  limit,
+  startAfter,
 } from 'firebase/firestore';
 import type { Customer, Invoice, Payment } from './types';
 import { db } from './firebase';
+import { getCountFromServer } from 'firebase/firestore';
 
 // Customer operations
 export const addCustomer = async (customer: Omit<Customer, 'id'>) => {
   const docRef = await addDoc(collection(db, 'customers'), customer);
   return docRef.id;
+};
+
+export const getCustomerCount = async (): Promise<number> => {
+  const coll = collection(db, 'customers');
+  const snapshot = await getCountFromServer(coll);
+  return snapshot.data().count;
 };
 
 export const getCustomers = async (): Promise<Customer[]> => {
@@ -56,6 +67,12 @@ export const addInvoice = async (invoice: Omit<Invoice, 'id'>) => {
   return docRef.id;
 };
 
+export const getInvoiceCount = async (): Promise<number> => {
+  const coll = collection(db, 'invoices');
+  const snapshot = await getCountFromServer(coll);
+  return snapshot.data().count;
+};
+
 export const getInvoices = async (): Promise<Invoice[]> => {
   const querySnapshot = await getDocs(
     query(collection(db, 'invoices'), orderBy('createdAt', 'desc'))
@@ -67,6 +84,70 @@ export const getInvoices = async (): Promise<Invoice[]> => {
         ...doc.data(),
       } as Invoice)
   );
+};
+
+export const getCustomerInvoices = async (
+  customerId: string,
+  currency: string
+): Promise<Invoice[]> => {
+  const invoicesRef = collection(db, 'invoices');
+
+  const q = query(
+    invoicesRef,
+    where('customerId', '==', customerId),
+    where('currency', '==', currency),
+    where('balance', '>', 0)
+  );
+
+  const querySnapshot = await getDocs(q);
+
+  return querySnapshot.docs.map(
+    (doc) =>
+      ({
+        id: doc.id,
+        ...doc.data(),
+      } as Invoice)
+  );
+};
+
+export const getInvoicesData = async (
+  sortBy: string,
+  ascending: boolean,
+  pageSize: number,
+  lastDoc?: QueryDocumentSnapshot<DocumentData>
+): Promise<{
+  invoices: Invoice[];
+  lastVisible: QueryDocumentSnapshot<DocumentData> | null;
+}> => {
+  const invoicesRef = collection(db, 'invoices');
+  let q = query(
+    invoicesRef,
+    orderBy(sortBy, ascending ? 'asc' : 'desc'),
+    limit(pageSize)
+  );
+
+  if (lastDoc) {
+    q = query(
+      invoicesRef,
+      orderBy(sortBy, ascending ? 'asc' : 'desc'),
+      startAfter(lastDoc),
+      limit(pageSize)
+    );
+  }
+
+  const snapshot = await getDocs(q);
+
+  const invoices = snapshot.docs.map(
+    (doc) =>
+      ({
+        id: doc.id,
+        ...doc.data(),
+      } as Invoice)
+  );
+
+  const lastVisible = snapshot.docs[snapshot.docs.length - 1] ?? null;
+
+  return { invoices, lastVisible };
 };
 
 export const updateInvoice = async (id: string, data: Partial<Invoice>) => {
@@ -83,23 +164,32 @@ export const addPayment = async (payment: Omit<Payment, 'id'>) => {
   return docRef.id;
 };
 
+export const getPaymentCount = async (): Promise<number> => {
+  const coll = collection(db, 'payments');
+  const snapshot = await getCountFromServer(coll);
+  return snapshot.data().count;
+};
+
 export const getPayments = async (): Promise<Payment[]> => {
   const querySnapshot = await getDocs(
     query(collection(db, 'payments'), orderBy('createdAt', 'desc'))
   );
-  return querySnapshot.docs.map(
-    (doc) =>
-      ({
-        id: doc.id,
-        ...doc.data(),
-      } as Payment)
-  );
+  return querySnapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      date: data.date.toDate(),
+      createdAt: data.createdAt.toDate(),
+    } as Payment;
+  });
 };
 
 export const allocatePaymentToInvoices = async (
   paymentId: string,
   customerId: string,
-  amount: number
+  amount: number,
+  currency: string
 ) => {
   const batch = writeBatch(db);
 
@@ -107,6 +197,7 @@ export const allocatePaymentToInvoices = async (
   const invoicesQuery = query(
     collection(db, 'invoices'),
     where('customerId', '==', customerId),
+    where('currency', '==', currency),
     where('status', 'in', ['pending', 'partially_paid']),
     orderBy('createdAt', 'asc')
   );
