@@ -11,13 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+
 import { ThemeToggle } from './ThemeToggle';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/Config/firebase';

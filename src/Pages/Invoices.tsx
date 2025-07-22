@@ -55,7 +55,7 @@ import {
   deleteInvoice,
   getCustomers,
   getInvoiceCount,
-  getInvoicesData,
+  // getInvoicesData,
 } from '@/Config/firestore';
 import type { Customer, Invoice } from '@/Config/types';
 import { toast } from 'sonner';
@@ -78,7 +78,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
-import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+// import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
@@ -93,9 +93,9 @@ import {
 export default function Invoices() {
   const [sortBy, setSortBy] = useState('invoiceNo');
   const [ascending, setAscending] = useState(false);
-  const [lastDoc, setLastDoc] = useState<
-    QueryDocumentSnapshot<DocumentData, DocumentData> | undefined
-  >(undefined);
+  // const [lastDoc, setLastDoc] = useState<
+  //   QueryDocumentSnapshot<DocumentData, DocumentData> | undefined
+  // >(undefined);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);

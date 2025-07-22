@@ -2,7 +2,7 @@
 
 import type React from 'react';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,7 +42,7 @@ import {
   getPayments,
   addPayment,
   getCustomers,
-  allocatePaymentToInvoices,
+  // allocatePaymentToInvoices,
   getCustomerInvoices,
 } from '@/Config/firestore';
 import type {
@@ -84,22 +84,7 @@ export default function Payments() {
     fetchCustomers();
   }, []);
 
-  useEffect(() => {
-    fetchInvoices();
-  }, [formData.customerId, formData.currency]);
-
-  const fetchPayments = async () => {
-    try {
-      const data = await getPayments();
-      setPayments(data);
-    } catch (error) {
-      toast.error('Error', {
-        description: 'Failed to fetch payments',
-      });
-    }
-  };
-
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
       const data = await getCustomerInvoices(
         formData.customerId,
@@ -110,6 +95,21 @@ export default function Payments() {
       console.error('Error fetching invoices:', error);
       toast.error('Error', {
         description: 'Failed to fetch invoices',
+      });
+    }
+  }, [formData.customerId, formData.currency]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
+
+  const fetchPayments = async () => {
+    try {
+      const data = await getPayments();
+      setPayments(data);
+    } catch (error) {
+      toast.error('Error', {
+        description: 'Failed to fetch payments',
       });
     }
   };
