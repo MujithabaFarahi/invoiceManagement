@@ -167,6 +167,26 @@ export default function Payments() {
       return;
     }
 
+    // 1. Check each allocation ≤ invoice balance
+    const hasOverAllocated = selectedInvoices.some(
+      (inv) => inv.allocatedAmount > inv.balance
+    );
+    if (hasOverAllocated) {
+      toast.error('Error', {
+        description:
+          'One or more invoices have allocations greater than their balance.',
+      });
+      return;
+    }
+
+    // 2. Check totalAllocated === amount
+    if (totalAllocated !== amount) {
+      toast.error('Error', {
+        description: 'Allocated amount must exactly match the payment amount.',
+      });
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -278,13 +298,14 @@ export default function Payments() {
                   currency: 'USD',
                   date: new Date().toISOString().split('T')[0],
                 });
+                setSelectedInvoices([]);
               }}
             >
               <Plus className="mr-2 h-4 w-4" />
               Record Payment
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="m-4 overflow-y-auto max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>Record New Payment</DialogTitle>
               <DialogDescription>
@@ -318,45 +339,64 @@ export default function Payments() {
                     required
                   />
                 </div>{' '}
-                <div className="flex gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="customer">Customer *</Label>
-                    <Select
-                      value={formData.customerId}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, customerId: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a customer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="flex gap-4 justify-between">
+                  <div className="flex gap-4 ">
+                    <div className="grid gap-2">
+                      <Label htmlFor="customer">Customer *</Label>
+                      <Select
+                        value={formData.customerId}
+                        onValueChange={(value) => {
+                          setFormData({ ...formData, customerId: value });
+                          if (formData.customerId !== value) {
+                            setSelectedInvoices([]);
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a customer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="currency">Currency</Label>
+                      <Select
+                        value={formData.currency}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, currency: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="JPY">JPY</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="currency">Currency</Label>
-                    <Select
-                      value={formData.currency}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, currency: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="USD">USD</SelectItem>
-                        <SelectItem value="EUR">EUR</SelectItem>
-                        <SelectItem value="JPY">JPY</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {invoices.length > 0 ? (
+                    <div className="grid gap-2 align-end">
+                      <Label>Total Due</Label>
+                      <p className=" text-orange-500">
+                        {invoices.reduce((sum, inv) => sum + inv.balance, 0)}{' '}
+                        {formData.currency}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-2 align-end">
+                      <Label>Total Due</Label>
+                      <p className=" text-green-500">0 {formData.currency}</p>
+                    </div>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="amount">Amount *</Label>
@@ -404,6 +444,7 @@ export default function Payments() {
                                       {
                                         invoiceId: invoice.id,
                                         allocatedAmount: 0,
+                                        balance: invoice.balance,
                                       },
                                     ]);
                                   } else {
@@ -426,39 +467,41 @@ export default function Payments() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div className="grid gap-2">
-                  <Label>Allocate Amounts</Label>
-                  {selectedInvoices.map((item, index) => {
-                    const invoice = invoices.find(
-                      (inv) => inv.id === item.invoiceId
-                    );
-                    return (
-                      <div key={index} className="flex items-center gap-2">
-                        <span className="flex-1">
-                          {invoice?.invoiceNo} ({invoice?.currency}{' '}
-                          {invoice?.balance})
-                        </span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={item.allocatedAmount}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value);
-                            setSelectedInvoices((prev) =>
-                              prev.map((i) =>
-                                i.invoiceId === item.invoiceId
-                                  ? { ...i, allocatedAmount: value }
-                                  : i
-                              )
-                            );
-                          }}
-                          placeholder="0.00"
-                          className="w-32"
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
+                {selectedInvoices.length > 0 && (
+                  <div className="grid gap-2">
+                    <Label>Allocate Amounts</Label>
+                    {selectedInvoices.map((item, index) => {
+                      const invoice = invoices.find(
+                        (inv) => inv.id === item.invoiceId
+                      );
+                      return (
+                        <div key={index} className="flex items-center gap-2">
+                          <span className="flex-1">
+                            {invoice?.invoiceNo} ({invoice?.currency}{' '}
+                            {invoice?.balance})
+                          </span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={item.allocatedAmount}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value);
+                              setSelectedInvoices((prev) =>
+                                prev.map((i) =>
+                                  i.invoiceId === item.invoiceId
+                                    ? { ...i, allocatedAmount: value }
+                                    : i
+                                )
+                              );
+                            }}
+                            placeholder="0.00"
+                            className="w-32"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button type="submit" isLoading={loading}>

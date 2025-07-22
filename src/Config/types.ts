@@ -26,6 +26,7 @@ export interface Invoice {
 export interface SelectedInvoice {
   invoiceId: string;
   allocatedAmount: number;
+  balance: number;
 }
 
 export interface InvoiceItem {
