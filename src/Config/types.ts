@@ -53,6 +53,29 @@ export interface PaymentAllocation {
   id: string;
   paymentId: string;
   invoiceId: string;
+  invoiceNo: string;
   allocatedAmount: number;
   createdAt: Date;
+}
+
+export function getPaginationRange(
+  current: number,
+  total: number
+): (number | string)[] {
+  const delta = 1;
+  const range: (number | string)[] = [];
+
+  for (let i = 1; i <= total; i++) {
+    if (
+      i <= 2 || // first 2
+      i > total - 2 || // last 2
+      (i >= current - delta && i <= current + delta) // around current
+    ) {
+      range.push(i);
+    } else if (range[range.length - 1] !== '...') {
+      range.push('...');
+    }
+  }
+
+  return range;
 }

@@ -15,7 +15,7 @@ import {
   limit,
   startAfter,
 } from 'firebase/firestore';
-import type { Customer, Invoice, Payment } from './types';
+import type { Customer, Invoice, Payment, PaymentAllocation } from './types';
 import { db } from './firebase';
 import { getCountFromServer } from 'firebase/firestore';
 
@@ -77,13 +77,14 @@ export const getInvoices = async (): Promise<Invoice[]> => {
   const querySnapshot = await getDocs(
     query(collection(db, 'invoices'), orderBy('createdAt', 'desc'))
   );
-  return querySnapshot.docs.map(
-    (doc) =>
-      ({
-        id: doc.id,
-        ...doc.data(),
-      } as Invoice)
-  );
+  return querySnapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt.toDate(),
+    } as Invoice;
+  });
 };
 
 export const getCustomerInvoices = async (
@@ -101,13 +102,14 @@ export const getCustomerInvoices = async (
 
   const querySnapshot = await getDocs(q);
 
-  return querySnapshot.docs.map(
-    (doc) =>
-      ({
-        id: doc.id,
-        ...doc.data(),
-      } as Invoice)
-  );
+  return querySnapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt.toDate(),
+    } as Invoice;
+  });
 };
 
 export const getInvoicesData = async (
@@ -137,13 +139,14 @@ export const getInvoicesData = async (
 
   const snapshot = await getDocs(q);
 
-  const invoices = snapshot.docs.map(
-    (doc) =>
-      ({
-        id: doc.id,
-        ...doc.data(),
-      } as Invoice)
-  );
+  const invoices = snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt.toDate(),
+    } as Invoice;
+  });
 
   const lastVisible = snapshot.docs[snapshot.docs.length - 1] ?? null;
 
@@ -183,6 +186,23 @@ export const getPayments = async (): Promise<Payment[]> => {
       createdAt: data.createdAt.toDate(),
     } as Payment;
   });
+};
+
+export const getPaymentById = async (paymentId: string): Promise<Payment> => {
+  const paymentRef = doc(db, 'payments', paymentId);
+  const paymentSnap = await getDoc(paymentRef);
+
+  if (!paymentSnap.exists()) {
+    throw new Error('Payment not found');
+  }
+
+  const data = paymentSnap.data();
+  return {
+    id: paymentSnap.id,
+    ...data,
+    date: data.date.toDate(),
+    createdAt: data.createdAt.toDate(),
+  } as Payment;
 };
 
 export const allocatePaymentToInvoices = async (
@@ -245,4 +265,23 @@ export const allocatePaymentToInvoices = async (
   });
 
   await batch.commit();
+};
+
+export const getPaymentAllocations = async (
+  paymentId: string
+): Promise<PaymentAllocation[]> => {
+  const allocationsRef = collection(db, 'paymentAllocations');
+
+  const q = query(allocationsRef, where('paymentId', '==', paymentId));
+
+  const querySnapshot = await getDocs(q);
+
+  return querySnapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt.toDate(),
+    } as PaymentAllocation;
+  });
 };

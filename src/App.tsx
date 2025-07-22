@@ -7,6 +7,7 @@ import Invoices from './Pages/Invoices';
 import Payments from './Pages/Payments';
 import './App.css';
 import { ProtectedRoute } from './Config/ProtectedRoutes';
+import PaymentDetails from './Pages/PaymentDetails';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="/customers" element={<Customers />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/payments" element={<Payments />} />
+            <Route path="/payments/:id" element={<PaymentDetails />} />
           </Route>
         </Route>
       </Routes>

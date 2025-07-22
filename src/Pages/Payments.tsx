@@ -2,13 +2,21 @@
 
 import type React from 'react';
 
-import { useCallback, useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  ArrowUpDown,
+  ChevronDown,
+  FilterX,
+  Loader2,
+  MoreHorizontal,
+  Plus,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -42,29 +50,58 @@ import {
   getPayments,
   addPayment,
   getCustomers,
-  // allocatePaymentToInvoices,
   getCustomerInvoices,
 } from '@/Config/firestore';
-import type {
-  Customer,
-  Invoice,
-  Payment,
-  SelectedInvoice,
+import {
+  getPaginationRange,
+  type Customer,
+  type Invoice,
+  type Payment,
+  type SelectedInvoice,
 } from '@/Config/types';
 import { toast } from 'sonner';
 import { collection, doc, getDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/Config/firebase';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  type ColumnDef,
+  type ColumnFiltersState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  type SortingState,
+  useReactTable,
+  type VisibilityState,
+} from '@tanstack/react-table';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+import { useNavigate } from 'react-router-dom';
 
 export default function Payments() {
+  const navigate = useNavigate();
+
   const [loading, setLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(false);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const [selectedInvoices, setSelectedInvoices] = useState<SelectedInvoice[]>(
@@ -79,38 +116,81 @@ export default function Payments() {
     date: new Date().toISOString().split('T')[0],
   });
 
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
+  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
+  const currencyOptions = ['USD', 'EUR', 'JPY'];
+
   useEffect(() => {
     fetchPayments();
     fetchCustomers();
   }, []);
 
-  const fetchInvoices = useCallback(async () => {
-    try {
-      const data = await getCustomerInvoices(
-        formData.customerId,
-        formData.currency
-      );
-      setInvoices(data);
-    } catch (error) {
-      console.error('Error fetching invoices:', error);
-      toast.error('Error', {
-        description: 'Failed to fetch invoices',
-      });
-    }
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      try {
+        const data = await getCustomerInvoices(
+          formData.customerId,
+          formData.currency
+        );
+        setInvoices(data);
+
+        // Set all invoices to selectedInvoices with allocatedAmount = 0
+        setSelectedInvoices(
+          data.map((inv) => ({
+            invoiceId: inv.id,
+            allocatedAmount: 0,
+            balance: inv.balance,
+          }))
+        );
+      } catch (error) {
+        console.error('Error fetching invoices:', error);
+        toast.error('Error', {
+          description: 'Failed to fetch invoices',
+        });
+      }
+    };
+
+    fetchInvoices();
   }, [formData.customerId, formData.currency]);
 
-  useEffect(() => {
-    fetchInvoices();
-  }, [fetchInvoices]);
+  const allocatePaymentToInvoices = () => {
+    const amount = parseFloat(formData.amount);
+    if (!amount || invoices.length === 0) return;
+
+    let remaining = amount;
+    const allocations = invoices.map((inv) => {
+      if (remaining <= 0) {
+        return {
+          invoiceId: inv.id,
+          allocatedAmount: 0,
+          balance: inv.balance,
+        };
+      }
+
+      const alloc = Math.min(remaining, inv.balance);
+      remaining -= alloc;
+
+      return {
+        invoiceId: inv.id,
+        allocatedAmount: alloc,
+        balance: inv.balance,
+      };
+    });
+
+    setSelectedInvoices(allocations);
+  };
 
   const fetchPayments = async () => {
     try {
+      setFetchLoading(true);
       const data = await getPayments();
       setPayments(data);
     } catch (error) {
       toast.error('Error', {
         description: 'Failed to fetch payments',
       });
+    } finally {
+      setFetchLoading(false);
     }
   };
 
@@ -154,8 +234,14 @@ export default function Payments() {
       return;
     }
 
+    const nonZeroAllocations = selectedInvoices.filter(
+      (i) => i.allocatedAmount > 0
+    );
+
+    // Now save nonZeroAllocations
+
     const amount = Number.parseFloat(formData.amount);
-    const totalAllocated = selectedInvoices.reduce(
+    const totalAllocated = nonZeroAllocations.reduce(
       (sum, i) => sum + i.allocatedAmount,
       0
     );
@@ -168,7 +254,7 @@ export default function Payments() {
     }
 
     // 1. Check each allocation ≤ invoice balance
-    const hasOverAllocated = selectedInvoices.some(
+    const hasOverAllocated = nonZeroAllocations.some(
       (inv) => inv.allocatedAmount > inv.balance
     );
     if (hasOverAllocated) {
@@ -207,7 +293,7 @@ export default function Payments() {
 
       // 2. Allocate to Invoices
       const batch = writeBatch(db);
-      for (const alloc of selectedInvoices) {
+      for (const alloc of nonZeroAllocations) {
         const invoiceRef = doc(db, 'invoices', alloc.invoiceId);
         const invoiceSnap = await getDoc(invoiceRef);
         if (!invoiceSnap.exists()) continue;
@@ -228,6 +314,7 @@ export default function Payments() {
         batch.set(allocRef, {
           paymentId,
           invoiceId: alloc.invoiceId,
+          invoiceNo: invoice.invoiceNo,
           allocatedAmount: alloc.allocatedAmount,
           createdAt: new Date(),
         });
@@ -275,6 +362,177 @@ export default function Payments() {
       setLoading(false);
     }
   };
+
+  const columns: ColumnDef<Payment>[] = [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && 'indeterminate')
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+
+    {
+      accessorKey: 'paymentNo',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            No
+            <ArrowUpDown />
+          </Button>
+        );
+      },
+      cell: ({ row }) => (
+        <div className="capitalize">{row.getValue('paymentNo')}</div>
+      ),
+    },
+    {
+      accessorKey: 'createdAt',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Date
+            <ArrowUpDown />
+          </Button>
+        );
+      },
+      cell: ({ row }) => (
+        <div className="capitalize">
+          {new Date(row.getValue('createdAt')).toLocaleDateString()}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'customerName',
+      header: 'Customer Name',
+      filterFn: (row, columnId, filterValue) => {
+        if (!filterValue?.length) return true;
+        return filterValue.includes(row.getValue(columnId));
+      },
+      cell: ({ row }) => (
+        <div className="capitalize">{row.getValue('customerName')}</div>
+      ),
+    },
+    {
+      accessorKey: 'currency',
+      header: 'Currency',
+      filterFn: (row, columnId, filterValue) => {
+        if (!filterValue?.length) return true;
+        return filterValue.includes(row.getValue(columnId));
+      },
+      cell: ({ row }) => (
+        <div className="capitalize">{row.getValue('currency')}</div>
+      ),
+    },
+    {
+      accessorKey: 'amount',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Amount
+            <ArrowUpDown />
+          </Button>
+        );
+      },
+      cell: ({ row }) => {
+        const amount = parseFloat(row.getValue('amount'));
+        // Format the amount as a dollar amount
+        const formatted = new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: row.getValue('currency') || 'USD',
+        }).format(amount);
+        return <div>{formatted}</div>;
+      },
+    },
+
+    {
+      id: 'actions',
+      enableHiding: false,
+      cell: ({ row }) => {
+        const payment = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => navigator.clipboard.writeText(payment.id)}
+              >
+                Copy payment ID
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>View customer</DropdownMenuItem>
+              <DropdownMenuItem>View payment details</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState({});
+  const table = useReactTable({
+    data: payments,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+    },
+  });
+
+  const currentPage = table.getState().pagination.pageIndex + 1;
+  const totalPages = table.getPageCount();
+  const paginationRange = getPaginationRange(currentPage, totalPages);
+
+  useEffect(() => {
+    table.getColumn('customerName')?.setFilterValue(selectedCustomers);
+  }, [selectedCustomers, table]);
+
+  useEffect(() => {
+    table.getColumn('currency')?.setFilterValue(selectedCurrencies);
+  }, [selectedCurrencies, table]);
 
   return (
     <div className="space-y-6">
@@ -398,21 +656,31 @@ export default function Payments() {
                     </div>
                   )}
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="amount">Amount *</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    value={formData.amount}
-                    onChange={(e) =>
-                      setFormData({ ...formData, amount: e.target.value })
-                    }
-                    placeholder="0.00"
-                    required
-                  />
+                <div className="flex gap-2">
+                  <div className="grid gap-2 w-full">
+                    <Label htmlFor="amount">Amount *</Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      value={formData.amount}
+                      onChange={(e) =>
+                        setFormData({ ...formData, amount: e.target.value })
+                      }
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="self-end"
+                    onClick={allocatePaymentToInvoices}
+                  >
+                    Auto Allocate
+                  </Button>
                 </div>
-                <div className="grid gap-2">
+                {/* <div className="grid gap-2">
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -466,7 +734,7 @@ export default function Payments() {
                       </div>
                     </PopoverContent>
                   </Popover>
-                </div>
+                </div> */}
                 {selectedInvoices.length > 0 && (
                   <div className="grid gap-2">
                     <Label>Allocate Amounts</Label>
@@ -504,7 +772,7 @@ export default function Payments() {
                 )}
               </div>
               <DialogFooter>
-                <Button type="submit" isLoading={loading}>
+                <Button className="min-w-36" type="submit" isLoading={loading}>
                   Record Payment
                 </Button>
               </DialogFooter>
@@ -521,54 +789,230 @@ export default function Payments() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Payment No</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Allocated</TableHead>
-                <TableHead>Remaining</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {payments.map((payment) => (
-                <TableRow key={payment.id}>
-                  <TableCell className="font-medium">
-                    {payment.paymentNo}
-                  </TableCell>
-                  <TableCell>
-                    {payment.date.toLocaleDateString().split('T')[0]}
-                  </TableCell>
-                  {/* <TableCell>{'N/A'}</TableCell> */}
-                  <TableCell>{payment.customerName}</TableCell>
-                  <TableCell>
-                    {payment.currency} {payment.amount.toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-green-600">
-                      {payment.currency}{' '}
-                      {payment.allocatedAmount?.toFixed(2) || '0.00'}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={
-                        payment.remainingAmount && payment.remainingAmount > 0
-                          ? 'text-orange-600'
-                          : 'text-green-600'
-                      }
+          <div className="flex flex-col md:flex-row items-end py-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full md:w-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    Customers <ChevronDown />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="max-h-64 overflow-auto"
+                >
+                  {customers.map((customer) => (
+                    <DropdownMenuCheckboxItem
+                      key={customer.id}
+                      checked={selectedCustomers.includes(customer.name)}
+                      onCheckedChange={(checked) => {
+                        setSelectedCustomers((prev) =>
+                          checked
+                            ? [...prev, customer.name]
+                            : prev.filter((name) => name !== customer.name)
+                        );
+                      }}
                     >
-                      {payment.currency}{' '}
-                      {payment.remainingAmount?.toFixed(2) || '0.00'}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                      {customer.name}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    Currency <ChevronDown />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {currencyOptions.map((currency) => (
+                    <DropdownMenuCheckboxItem
+                      key={currency}
+                      checked={selectedCurrencies.includes(currency)}
+                      onCheckedChange={(checked) => {
+                        setSelectedCurrencies((prev) =>
+                          checked
+                            ? [...prev, currency]
+                            : prev.filter((c) => c !== currency)
+                        );
+                      }}
+                      className="capitalize"
+                    >
+                      {currency.replace('_', ' ')}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button
+                onClick={() => {
+                  setSelectedCustomers([]);
+                  setSelectedCurrencies([]);
+                  table.resetColumnFilters();
+                }}
+              >
+                <FilterX className="" />
+                Reset Filters
+              </Button>
+            </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="ml-auto">
+                  Columns <ChevronDown />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {table
+                  .getAllColumns()
+                  .filter((column) => column.getCanHide())
+                  .map((column) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        className="capitalize"
+                        checked={column.getIsVisible()}
+                        onCheckedChange={(value) =>
+                          column.toggleVisibility(!!value)
+                        }
+                      >
+                        {column.id}
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      return (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                        </TableHead>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && 'selected'}
+                      onClick={() => {
+                        navigate(`/payments/${row.original.id}`);
+                      }}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : fetchLoading ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-24 text-center"
+                    >
+                      <Loader2 className="mx-auto animate-spin" />
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-24 text-center"
+                    >
+                      No Invoices Found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
+        <CardFooter>
+          <div className="flex flex-col justify-between gap-4 w-full md:flex-row">
+            <Pagination>
+              <PaginationContent>
+                {/* Previous Button */}
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => table.previousPage()}
+                    className={
+                      !table.getCanPreviousPage()
+                        ? 'pointer-events-none opacity-50'
+                        : 'cursor-pointer'
+                    }
+                  />
+                </PaginationItem>
+
+                {/* Numbered Pages with Truncation */}
+                {paginationRange.map((item, idx) => (
+                  <PaginationItem key={idx}>
+                    {typeof item === 'string' ? (
+                      <span className="px-2 text-muted-foreground">…</span>
+                    ) : (
+                      <PaginationLink
+                        isActive={item === currentPage}
+                        onClick={() => table.setPageIndex(item - 1)}
+                        className="cursor-pointer"
+                      >
+                        {item}
+                      </PaginationLink>
+                    )}
+                  </PaginationItem>
+                ))}
+
+                {/* Next Button */}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => table.nextPage()}
+                    className={
+                      !table.getCanNextPage()
+                        ? 'pointer-events-none opacity-50'
+                        : 'cursor-pointer'
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+
+            <div className="flex justify-end ">
+              <Select
+                value={table.getState().pagination.pageSize.toString()}
+                onValueChange={(value) => table.setPageSize(Number(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Rows per page" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[5, 10, 25, 50].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size} per page
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );

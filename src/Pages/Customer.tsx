@@ -259,7 +259,7 @@ export default function Customers() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit" isLoading={loading}>
+                <Button className="min-w-36" type="submit" isLoading={loading}>
                   {editingCustomer ? 'Update Customer' : 'Add Customer'}
                 </Button>
               </DialogFooter>
