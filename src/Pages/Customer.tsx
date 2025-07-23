@@ -1,14 +1,24 @@
 'use client';
 
-import type React from 'react';
+import React from 'react';
 
 import { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import {
+  Plus,
+  Edit,
+  Trash2,
+  ArrowUpDown,
+  MoreHorizontal,
+  Loader2,
+  ChevronDown,
+  FilterX,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -33,14 +43,24 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-
 import {
-  getCustomers,
+  type ColumnDef,
+  type ColumnFiltersState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  type SortingState,
+  useReactTable,
+  type VisibilityState,
+} from '@tanstack/react-table';
+import {
   addCustomer,
   updateCustomer,
   deleteCustomer,
 } from '@/Config/firestore';
-import type { Customer } from '@/Config/types';
+import { getPaginationRange, type Customer } from '@/Config/types';
 import {
   Select,
   SelectContent,
@@ -48,11 +68,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch, RootState } from '@/redux/store/store';
+import {
+  addCustomerToList,
+  deleteCustomerFromList,
+  fetchCurrencies,
+  fetchCustomers,
+  updateCustomerInList,
+} from '@/redux/features/paymentSlice';
+import { Checkbox } from '@radix-ui/react-checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 
 export default function Customers() {
-  const [loading, setLoading] = useState(false);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const dispatch = useDispatch<AppDispatch>();
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -61,21 +109,21 @@ export default function Customers() {
     address: '',
     currency: 'USD',
   });
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
+  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
+
+  const { loading, customers, currencies } = useSelector(
+    (state: RootState) => state.payment
+  );
 
   useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const fetchCustomers = async () => {
-    try {
-      const data = await getCustomers();
-      setCustomers(data);
-    } catch (error) {
-      toast.error('Error', {
-        description: 'Failed to fetch customers',
-      });
+    if (currencies.length === 0) {
+      dispatch(fetchCurrencies());
     }
-  };
+    if (customers.length === 0) {
+      dispatch(fetchCustomers());
+    }
+  }, [dispatch, currencies.length, customers.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,18 +136,36 @@ export default function Customers() {
     }
 
     try {
-      setLoading(true);
+      setIsLoading(true);
       if (editingCustomer) {
         await updateCustomer(editingCustomer.id, formData);
+        dispatch(
+          updateCustomerInList({
+            id: editingCustomer.id,
+            createdAt: editingCustomer.createdAt,
+            amountDue: editingCustomer.amountDue,
+            ...formData,
+          })
+        );
         toast.success('Success', {
           description: 'Customer updated successfully',
         });
       } else {
-        await addCustomer({
+        const id = await addCustomer({
           ...formData,
           amountDue: 0,
           createdAt: new Date(),
         });
+
+        dispatch(
+          addCustomerToList({
+            id,
+            ...formData,
+            amountDue: 0,
+            createdAt: new Date(),
+          })
+        );
+
         toast.success('Success', {
           description: 'Customer added successfully',
         });
@@ -114,13 +180,12 @@ export default function Customers() {
         address: '',
         currency: 'USD',
       });
-      fetchCustomers();
     } catch (error) {
       toast.error('Error', {
         description: 'Failed to save customer',
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -139,18 +204,221 @@ export default function Customers() {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this customer?')) {
       try {
+        setIsLoading(true);
         await deleteCustomer(id);
         toast.success('Success', {
           description: 'Customer deleted successfully',
         });
-        fetchCustomers();
+
+        dispatch(deleteCustomerFromList(id));
       } catch (error) {
         toast.error('Error', {
           description: 'Failed to delete customer',
         });
+      } finally {
+        setIsLoading(false);
       }
     }
   };
+
+  const columns: ColumnDef<Customer>[] = [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && 'indeterminate')
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+
+    {
+      accessorKey: 'name',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Name
+            <ArrowUpDown />
+          </Button>
+        );
+      },
+      cell: ({ row }) => (
+        <div className="capitalize font-medium">{row.getValue('name')}</div>
+      ),
+    },
+
+    // {
+    //   accessorKey: 'createdAt',
+    //   header: ({ column }) => {
+    //     return (
+    //       <Button
+    //         variant="ghost"
+    //         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+    //       >
+    //         Date
+    //         <ArrowUpDown />
+    //       </Button>
+    //     );
+    //   },
+    //   cell: ({ row }) => (
+    //     <div className="capitalize">
+    //       {new Date(row.getValue('createdAt')).toLocaleDateString()}
+    //     </div>
+    //   ),
+    // },
+    {
+      accessorKey: 'email',
+      header: 'Email',
+      filterFn: (row, columnId, filterValue) => {
+        if (!filterValue?.length) return true;
+        return filterValue.includes(row.getValue(columnId));
+      },
+      cell: ({ row }) => <div>{row.getValue('email') ?? '-'}</div>,
+    },
+    {
+      accessorKey: 'phone',
+      header: 'Phone',
+      filterFn: (row, columnId, filterValue) => {
+        if (!filterValue?.length) return true;
+        return filterValue.includes(row.getValue(columnId));
+      },
+      cell: ({ row }) => (
+        <div className="capitalize">{row.getValue('phone') ?? '-'}</div>
+      ),
+    },
+    {
+      accessorKey: 'currency',
+      header: 'Currency',
+      filterFn: (row, columnId, filterValue) => {
+        if (!filterValue?.length) return true;
+        return filterValue.includes(row.getValue(columnId));
+      },
+      cell: ({ row }) => (
+        <div className="capitalize">{row.getValue('currency')}</div>
+      ),
+    },
+    {
+      accessorKey: 'amountDue',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Amount
+            <ArrowUpDown />
+          </Button>
+        );
+      },
+      cell: ({ row }) => {
+        const amount = parseFloat(row.getValue('amountDue'));
+        // Format the amount as a dollar amount
+        const formatted = new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: row.getValue('currency') || 'USD',
+        }).format(amount);
+        return <div>{formatted}</div>;
+      },
+    },
+
+    {
+      id: 'actions',
+      enableHiding: false,
+      cell: ({ row }) => {
+        const customer = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => navigator.clipboard.writeText(customer.name)}
+              >
+                Copy Customer Name
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onClick={() => {
+                  handleEdit(customer);
+                }}
+              >
+                <Edit className="text-primary" />
+                Edit Customer
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  handleDelete(customer.id);
+                }}
+              >
+                <Trash2 className="text-red-700" />
+                Delete Customer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  );
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = React.useState({});
+  const table = useReactTable({
+    data: customers,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+    },
+  });
+
+  const currentPage = table.getState().pagination.pageIndex + 1;
+  const totalPages = table.getPageCount();
+  const paginationRange = getPaginationRange(currentPage, totalPages);
+
+  useEffect(() => {
+    table.getColumn('name')?.setFilterValue(selectedCustomers);
+  }, [selectedCustomers, table]);
+
+  useEffect(() => {
+    table.getColumn('currency')?.setFilterValue(selectedCurrencies);
+  }, [selectedCurrencies, table]);
 
   return (
     <div className="space-y-6">
@@ -228,9 +496,11 @@ export default function Customers() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="USD">USD</SelectItem>
-                      <SelectItem value="EUR">EUR</SelectItem>
-                      <SelectItem value="JPY">JPY</SelectItem>
+                      {currencies.map((currency) => (
+                        <SelectItem key={currency.code} value={currency.code}>
+                          {currency.code}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -259,7 +529,11 @@ export default function Customers() {
                 </div>
               </div>
               <DialogFooter>
-                <Button className="min-w-36" type="submit" isLoading={loading}>
+                <Button
+                  className="min-w-36"
+                  type="submit"
+                  isLoading={isLoading}
+                >
                   {editingCustomer ? 'Update Customer' : 'Add Customer'}
                 </Button>
               </DialogFooter>
@@ -276,56 +550,217 @@ export default function Customers() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Amount Due</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell className="font-medium">{customer.name}</TableCell>
-                  <TableCell>{customer.email || '-'}</TableCell>
-                  <TableCell>{customer.phone || '-'}</TableCell>
-                  <TableCell>
-                    <span
-                      className={
-                        customer.amountDue > 0
-                          ? 'text-orange-600 font-medium'
-                          : 'text-green-600'
-                      }
+          <div className="flex flex-col md:flex-row items-end py-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full md:w-auto">
+              <Input
+                placeholder="Filter customers..."
+                value={
+                  (table.getColumn('name')?.getFilterValue() as string) ?? ''
+                }
+                onChange={(event) =>
+                  table.getColumn('name')?.setFilterValue(event.target.value)
+                }
+                className="max-w-sm"
+              />
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    Currency <ChevronDown />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {currencies.map((currency) => (
+                    <DropdownMenuCheckboxItem
+                      key={currency.code}
+                      checked={selectedCurrencies.includes(currency.code)}
+                      onSelect={(e) => e.preventDefault()}
+                      onCheckedChange={(checked) => {
+                        setSelectedCurrencies((prev) =>
+                          checked
+                            ? [...prev, currency.code]
+                            : prev.filter((c) => c !== currency.code)
+                        );
+                      }}
+                      className="capitalize"
                     >
-                      ${customer.amountDue.toFixed(2)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(customer)}
+                      {currency.code}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button
+                onClick={() => {
+                  setSelectedCustomers([]);
+                  setSelectedCurrencies([]);
+                  table.resetColumnFilters();
+                }}
+              >
+                <FilterX className="" />
+                Reset Filters
+              </Button>
+            </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="ml-auto">
+                  Columns <ChevronDown />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {table
+                  .getAllColumns()
+                  .filter((column) => column.getCanHide())
+                  .map((column) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        className="capitalize"
+                        checked={column.getIsVisible()}
+                        onCheckedChange={(value) =>
+                          column.toggleVisibility(!!value)
+                        }
                       >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(customer.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                        {column.id}
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      return (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                        </TableHead>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && 'selected'}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : loading ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-24 text-center"
+                    >
+                      <Loader2 className="mx-auto animate-spin" />
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-24 text-center"
+                    >
+                      No Invoices Found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
+        <CardFooter>
+          <div className="flex flex-col justify-between gap-4 w-full md:flex-row">
+            <div className="flex items-center gap-2 justify-center">
+              <p className="text-sm text-muted-foreground">
+                Selected {table.getFilteredSelectedRowModel().rows.length} of{' '}
+                {table.getFilteredRowModel().rows.length} customers
+              </p>
+            </div>
+            <Pagination>
+              <PaginationContent>
+                {/* Previous Button */}
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => table.previousPage()}
+                    className={
+                      !table.getCanPreviousPage()
+                        ? 'pointer-events-none opacity-50'
+                        : 'cursor-pointer'
+                    }
+                  />
+                </PaginationItem>
+
+                {/* Numbered Pages with Truncation */}
+                {paginationRange.map((item, idx) => (
+                  <PaginationItem key={idx}>
+                    {typeof item === 'string' ? (
+                      <span className="px-2 text-muted-foreground">…</span>
+                    ) : (
+                      <PaginationLink
+                        isActive={item === currentPage}
+                        onClick={() => table.setPageIndex(item - 1)}
+                        className="cursor-pointer"
+                      >
+                        {item}
+                      </PaginationLink>
+                    )}
+                  </PaginationItem>
+                ))}
+
+                {/* Next Button */}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => table.nextPage()}
+                    className={
+                      !table.getCanNextPage()
+                        ? 'pointer-events-none opacity-50'
+                        : 'cursor-pointer'
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+
+            <div className="flex justify-end ">
+              <Select
+                value={table.getState().pagination.pageSize.toString()}
+                onValueChange={(value) => table.setPageSize(Number(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Rows per page" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[5, 10, 25, 50].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size} per page
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );

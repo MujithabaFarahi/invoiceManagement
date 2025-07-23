@@ -5,19 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { getPaymentAllocations, getPaymentById } from '@/Config/firestore';
-import type { Payment } from '@/Config/types';
+import type { Payment, PaymentAllocation } from '@/Config/types';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-
-interface Allocation {
-  id: string;
-  invoiceId: string;
-  allocatedAmount: number;
-}
 
 export default function PaymentDetails() {
   const navigate = useNavigate();
   const { id: paymentId } = useParams();
-  const [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [allocations, setAllocations] = useState<PaymentAllocation[]>([]);
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -94,7 +88,7 @@ export default function PaymentDetails() {
         allocations.map((allocation) => (
           <div key={allocation.id} className="mb-4">
             <Label className="block text-sm font-medium">
-              Invoice ID: {allocation.invoiceId}
+              Invoice No: {allocation.invoiceNo ?? 'N/A'}
             </Label>
             <Input
               type="number"

@@ -19,6 +19,7 @@ export interface Invoice {
   currency: string;
   balance: number;
   status: 'pending' | 'partially_paid' | 'paid';
+  date: Date;
   createdAt: Date;
   items?: InvoiceItem[];
 }
@@ -27,6 +28,12 @@ export interface SelectedInvoice {
   invoiceId: string;
   allocatedAmount: number;
   balance: number;
+}
+
+export interface Currency {
+  id: string;
+  code: string;
+  name: string;
 }
 
 export interface InvoiceItem {

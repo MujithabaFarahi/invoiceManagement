@@ -8,49 +8,100 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Users, FileText, CreditCard, DollarSign } from 'lucide-react';
-import { getCustomers, getInvoices, getPayments } from '@/Config/firestore';
+import { Users, FileText, CreditCard, DollarSign, Loader2 } from 'lucide-react';
+import {
+  getCustomerCount,
+  getInvoiceCount,
+  getPaymentCount,
+} from '@/Config/firestore';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch, RootState } from '@/redux/store/store';
+import { fetchPayments } from '@/redux/features/paymentSlice';
+import { fetchInvoices } from '@/redux/features/invoiceSlice';
 
 export default function Dashboard() {
+  const dispatch = useDispatch<AppDispatch>();
+
+  const { payments } = useSelector((state: RootState) => state.payment);
+  const { invoices } = useSelector((state: RootState) => state.invoice);
+
   const [stats, setStats] = useState({
     totalCustomers: 0,
     totalInvoices: 0,
     totalPayments: 0,
-    totalRevenue: 0,
-    pendingAmount: 0,
+    USDPending: 0,
+    EURPending: 0,
+    JPYPending: 0,
   });
 
+  // Initial fetch
   useEffect(() => {
+    if (invoices.length === 0) {
+      dispatch(fetchInvoices());
+    }
+    if (payments.length === 0) {
+      dispatch(fetchPayments());
+    }
+
     const fetchStats = async () => {
       try {
-        const [customers, invoices, payments] = await Promise.all([
-          getCustomers(),
-          getInvoices(),
-          getPayments(),
-        ]);
+        const [totalCustomers, totalInvoices, totalPayments] =
+          await Promise.all([
+            getCustomerCount(),
+            getInvoiceCount(),
+            getPaymentCount(),
+          ]);
 
-        const totalRevenue = payments.reduce(
-          (sum, payment) => sum + payment.amount,
-          0
-        );
-        const pendingAmount = invoices
-          .filter((invoice) => invoice.status !== 'paid')
-          .reduce((sum, invoice) => sum + invoice.balance, 0);
-
-        setStats({
-          totalCustomers: customers.length,
-          totalInvoices: invoices.length,
-          totalPayments: payments.length,
-          totalRevenue,
-          pendingAmount,
-        });
+        setStats((prev) => ({
+          ...prev,
+          totalCustomers,
+          totalInvoices,
+          totalPayments,
+        }));
       } catch (error) {
         console.error('Error fetching stats:', error);
       }
     };
 
     fetchStats();
-  }, []);
+  }, [dispatch, invoices.length, payments.length]);
+
+  // Example exchange rates (update as needed)
+  const exchangeRates = {
+    USD_TO_JPY: 155.25,
+    EUR_TO_JPY: 169.5,
+  };
+
+  const totalPendingInJPY =
+    stats.JPYPending +
+    stats.USDPending * exchangeRates.USD_TO_JPY +
+    stats.EURPending * exchangeRates.EUR_TO_JPY;
+
+  // Calculate pending by currency after invoices are fetched
+  useEffect(() => {
+    const pending = {
+      USDPending: 0,
+      EURPending: 0,
+      JPYPending: 0,
+    };
+
+    invoices
+      .filter((invoice) => invoice.status !== 'paid')
+      .forEach((invoice) => {
+        if (invoice.currency === 'USD') {
+          pending.USDPending += invoice.balance;
+        } else if (invoice.currency === 'EUR') {
+          pending.EURPending += invoice.balance;
+        } else if (invoice.currency === 'JPY') {
+          pending.JPYPending += invoice.balance;
+        }
+      });
+
+    setStats((prev) => ({
+      ...prev,
+      ...pending,
+    }));
+  }, [invoices]);
 
   return (
     <div className="space-y-6">
@@ -105,7 +156,14 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${stats.totalRevenue.toFixed(2)}
+              {totalPendingInJPY !== null ? (
+                new Intl.NumberFormat('ja-JP', {
+                  style: 'currency',
+                  currency: 'JPY',
+                }).format(totalPendingInJPY)
+              ) : (
+                <Loader2 className="animate-spin h-6 w-6" />
+              )}
             </div>
           </CardContent>
         </Card>
@@ -118,8 +176,25 @@ export default function Dashboard() {
             <CardDescription>Amount pending from customers</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-orange-600">
-              ${stats.pendingAmount.toFixed(2)}
+            <div className="flex flex-col space-y-2">
+              <p>
+                {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: 'JPY',
+                }).format(stats.JPYPending)}
+              </p>
+              <p>
+                {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                }).format(stats.USDPending)}
+              </p>
+              <p>
+                {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: 'EUR',
+                }).format(stats.EURPending)}
+              </p>
             </div>
           </CardContent>
         </Card>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import React from 'react';
 
 import { useEffect, useState } from 'react';
 import {
@@ -10,6 +10,8 @@ import {
   ChevronDown,
   Loader2,
   FilterX,
+  Trash2,
+  Edit,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -47,19 +49,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import {
-  getInvoices,
-  addInvoice,
-  updateInvoice,
-  // deleteInvoice,
-  getCustomers,
-  // getInvoicesData,
-} from '@/Config/firestore';
-import {
-  getPaginationRange,
-  type Customer,
-  type Invoice,
-} from '@/Config/types';
+import { addInvoice, updateInvoice, deleteInvoice } from '@/Config/firestore';
+import { getPaginationRange, type Invoice } from '@/Config/types';
 import { toast } from 'sonner';
 import {
   type ColumnDef,
@@ -91,26 +82,48 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch, RootState } from '@/redux/store/store';
+import {
+  addInvoiceToList,
+  deleteInvoiceFromList,
+  fetchInvoices,
+  updateInvoiceInList,
+} from '@/redux/features/invoiceSlice';
+import { fetchCurrencies, fetchCustomers } from '@/redux/features/paymentSlice';
 
 export default function Invoices() {
-  // const [sortBy, setSortBy] = useState('invoiceNo');
-  // const [ascending, setAscending] = useState(false);
-  // const [lastDoc, setLastDoc] = useState<
-  //   QueryDocumentSnapshot<DocumentData, DocumentData> | undefined
-  // >(undefined);
-  // const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(false);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const dispatch = useDispatch<AppDispatch>();
+
+  const { currencies, customers } = useSelector(
+    (state: RootState) => state.payment
+  );
+
+  const { loading, invoices } = useSelector(
+    (state: RootState) => state.invoice
+  );
+
+  useEffect(() => {
+    if (invoices.length === 0) {
+      dispatch(fetchInvoices());
+    }
+    if (currencies.length === 0) {
+      dispatch(fetchCurrencies());
+    }
+    if (customers.length === 0) {
+      dispatch(fetchCustomers());
+    }
+  }, [dispatch, invoices.length, currencies.length, customers.length]);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
   const statusOptions = ['paid', 'partially_paid', 'pending'];
-  const currencyOptions = ['USD', 'EUR', 'JPY'];
 
   const [formData, setFormData] = useState({
     invoiceNo: '',
@@ -120,56 +133,15 @@ export default function Invoices() {
     date: new Date().toISOString().split('T')[0],
   });
 
-  // const [currentPage, setCurrentPage] = useState(1);
-  // const [pageSize, setPageSize] = useState(10);
-  // const totalPages = total ? Math.ceil(total / pageSize) : 0;
-
-  const fetchInvoices = useCallback(async () => {
-    try {
-      setFetchLoading(true);
-      // const { invoices, lastVisible } = await getInvoicesData(
-      //   sortBy,
-      //   ascending,
-      //   pageSize,
-      //   lastDoc
-      // );
-      // setInvoices(invoices);
-      // setLastDoc(lastVisible ?? undefined);
-
-      const data = await getInvoices();
-      setInvoices(data);
-    } catch (error) {
-      console.error('Error fetching invoices:', error);
-      toast.error('Error', {
-        description: 'Failed to fetch invoices',
-      });
-    } finally {
-      setFetchLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchInvoices();
-    fetchCustomers();
-
-    // getInvoiceCount().then((count) => {
-    //   setTotal(count);
-    // });
-  }, [fetchInvoices]);
-
-  const fetchCustomers = async () => {
-    try {
-      const data = await getCustomers();
-      setCustomers(data);
-    } catch (error) {
-      toast.error('Error', {
-        description: 'Failed to fetch customers',
-      });
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (errorMessage) {
+      toast.error('Error', {
+        description: 'Please provide a unique invoice number',
+      });
+      return;
+    }
 
     if (!formData.invoiceNo || !formData.customerId || !formData.totalAmount) {
       toast.error('Error', {
@@ -189,7 +161,7 @@ export default function Invoices() {
     const totalAmount = Number.parseFloat(formData.totalAmount);
 
     try {
-      setLoading(true);
+      setIsLoading(true);
       const invoiceData = {
         invoiceNo: formData.invoiceNo,
         customerId: formData.customerId,
@@ -199,16 +171,39 @@ export default function Invoices() {
         currency: formData.currency,
         balance: totalAmount,
         status: 'pending' as const,
-        createdAt: new Date(formData.date),
+        date: new Date(formData.date),
+        createdAt: new Date(),
       };
 
       if (editingInvoice) {
         await updateInvoice(editingInvoice.id, invoiceData);
+        dispatch(
+          updateInvoiceInList({
+            id: editingInvoice.id,
+            invoiceNo: formData.invoiceNo,
+            customerId: formData.customerId,
+            currency: formData.currency,
+            date: new Date(formData.date),
+            customerName: customer.name,
+            totalAmount,
+            amountPaid: 0,
+            balance: totalAmount,
+            status: 'pending' as const,
+            createdAt: editingInvoice.createdAt,
+          })
+        );
         toast.success('Success', {
           description: 'Invoice updated successfully',
         });
       } else {
-        await addInvoice(invoiceData);
+        const id = await addInvoice(invoiceData);
+
+        dispatch(
+          addInvoiceToList({
+            id,
+            ...invoiceData,
+          })
+        );
         toast.success('Success', {
           description: 'Invoice created successfully',
         });
@@ -223,65 +218,59 @@ export default function Invoices() {
         currency: 'USD',
         date: new Date().toISOString().split('T')[0],
       });
-      fetchInvoices();
-      fetchCustomers(); // Refresh to update customer amount due
     } catch (error) {
       toast.error('Error', {
         description: 'Failed to save invoice',
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  // const handleEdit = (invoice: Invoice) => {
-  //   setEditingInvoice(invoice);
-  //   setFormData({
-  //     invoiceNo: invoice.invoiceNo,
-  //     customerId: invoice.customerId,
-  //     totalAmount: invoice.totalAmount.toString(),
-  //     currency: invoice.currency,
-  //     date: invoice.createdAt.toISOString().split('T')[0],
-  //   });
-  //   setIsDialogOpen(true);
-  // };
+  const handleEdit = (invoice: Invoice) => {
+    setEditingInvoice(invoice);
+    setFormData({
+      invoiceNo: invoice.invoiceNo,
+      customerId: invoice.customerId,
+      totalAmount: invoice.totalAmount.toString(),
+      currency: invoice.currency,
+      date: invoice.date.toISOString().split('T')[0],
+    });
+    setIsDialogOpen(true);
+  };
 
-  // const handleDelete = async (id: string) => {
-  //   if (confirm('Are you sure you want to delete this invoice?')) {
-  //     try {
-  //       await deleteInvoice(id);
-  //       toast.success('Success', {
-  //         description: 'Invoice deleted successfully',
-  //       });
-  //       fetchInvoices();
-  //     } catch (error) {
-  //       toast.error('Error', {
-  //         description: 'Failed to delete invoice',
-  //       });
-  //     }
-  //   }
-  // };
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this invoice?')) {
+      try {
+        await deleteInvoice(id);
+        toast.success('Success', {
+          description: 'Invoice deleted successfully',
+        });
+        dispatch(deleteInvoiceFromList(id));
+      } catch (error) {
+        toast.error('Error', {
+          description: 'Failed to delete invoice',
+        });
+      }
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
-        return <Badge className="bg-green-100 text-green-800">Paid</Badge>;
+        return <Badge className="bg-green-800 text-green-100">Paid</Badge>;
       case 'partially_paid':
         return (
-          <Badge className="bg-yellow-100 text-yellow-800">
+          <Badge className="bg-yellow-700 text-yellow-100">
             Partially Paid
           </Badge>
         );
       case 'pending':
-        return <Badge className="bg-red-100 text-red-800">Pending</Badge>;
+        return <Badge className="bg-red-800 text-red-100">Pending</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
-
-  // const handlePageChange = (newPage: number) => {
-  //   setCurrentPage(newPage);
-  // };
 
   const columns: ColumnDef<Invoice>[] = [
     {
@@ -398,7 +387,7 @@ export default function Invoices() {
           style: 'currency',
           currency: row.getValue('currency') || 'USD',
         }).format(amount);
-        return <div className="text-center">{formatted}</div>;
+        return <div>{formatted}</div>;
       },
     },
     {
@@ -441,7 +430,7 @@ export default function Invoices() {
       id: 'actions',
       enableHiding: false,
       cell: ({ row }) => {
-        const payment = row.original;
+        const invoice = row.original;
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -453,13 +442,50 @@ export default function Invoices() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(payment.id)}
+                onClick={() => navigator.clipboard.writeText(invoice.invoiceNo)}
               >
-                Copy payment ID
+                Copy Invoice No
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>View customer</DropdownMenuItem>
-              <DropdownMenuItem>View payment details</DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => {
+                  if (invoice.status === 'paid') {
+                    toast.error('Error', {
+                      description: 'Cannot edit a paid invoice',
+                    });
+                    return;
+                  } else if (invoice.status === 'partially_paid') {
+                    toast.error('Error', {
+                      description: 'Cannot edit a partially paid invoice',
+                    });
+                    return;
+                  }
+                  handleEdit(invoice);
+                }}
+              >
+                <Edit className="text-primary" />
+                Edit Invoice
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (invoice.status === 'paid') {
+                    toast.error('Error', {
+                      description: 'Cannot delete a paid invoice',
+                    });
+                    return;
+                  } else if (invoice.status === 'partially_paid') {
+                    toast.error('Error', {
+                      description: 'Cannot delete a partially paid invoice',
+                    });
+                    return;
+                  }
+                  handleDelete(invoice.id);
+                }}
+              >
+                <Trash2 className="text-red-700" />
+                Delete Invoice
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         );
@@ -555,12 +581,23 @@ export default function Invoices() {
                   <Input
                     id="invoiceNo"
                     value={formData.invoiceNo}
-                    onChange={(e) =>
-                      setFormData({ ...formData, invoiceNo: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFormData({ ...formData, invoiceNo: value });
+
+                      const exists = invoices.some(
+                        (inv) => inv.invoiceNo === value
+                      );
+                      setErrorMessage(
+                        exists ? 'Invoice number already exists' : ''
+                      );
+                    }}
                     placeholder="INV-001"
                     required
                   />
+                  {errorMessage && (
+                    <p className="text-sm text-red-500">{errorMessage}</p>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="date">Date</Label>
@@ -580,7 +617,13 @@ export default function Invoices() {
                     <Select
                       value={formData.customerId}
                       onValueChange={(value) =>
-                        setFormData({ ...formData, customerId: value })
+                        setFormData({
+                          ...formData,
+                          customerId: value,
+                          currency:
+                            customers.find((c) => c.id === value)?.currency ||
+                            'USD',
+                        })
                       }
                     >
                       <SelectTrigger>
@@ -630,7 +673,11 @@ export default function Invoices() {
                 </div>
               </div>
               <DialogFooter>
-                <Button className="min-w-36" type="submit" isLoading={loading}>
+                <Button
+                  className="min-w-36"
+                  type="submit"
+                  isLoading={isLoading}
+                >
                   {editingInvoice ? 'Update Invoice' : 'Create Invoice'}
                 </Button>
               </DialogFooter>
@@ -682,6 +729,7 @@ export default function Invoices() {
                     <DropdownMenuCheckboxItem
                       key={customer.id}
                       checked={selectedCustomers.includes(customer.name)}
+                      onSelect={(e) => e.preventDefault()}
                       onCheckedChange={(checked) => {
                         setSelectedCustomers((prev) =>
                           checked
@@ -707,6 +755,7 @@ export default function Invoices() {
                     <DropdownMenuCheckboxItem
                       key={status}
                       checked={selectedStatuses.includes(status)}
+                      onSelect={(e) => e.preventDefault()}
                       onCheckedChange={(checked) => {
                         setSelectedStatuses((prev) =>
                           checked
@@ -729,20 +778,37 @@ export default function Invoices() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {currencyOptions.map((currency) => (
+                  <DropdownMenuCheckboxItem
+                    checked={selectedCurrencies.length === currencies.length}
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedCurrencies(currencies.map((c) => c.code));
+                      } else {
+                        setSelectedCurrencies([]);
+                      }
+                    }}
+                    className="capitalize font-semibold"
+                  >
+                    Select All
+                  </DropdownMenuCheckboxItem>
+
+                  <DropdownMenuSeparator />
+                  {currencies.map((currency) => (
                     <DropdownMenuCheckboxItem
-                      key={currency}
-                      checked={selectedCurrencies.includes(currency)}
+                      key={currency.code}
+                      checked={selectedCurrencies.includes(currency.code)}
+                      onSelect={(e) => e.preventDefault()}
                       onCheckedChange={(checked) => {
                         setSelectedCurrencies((prev) =>
                           checked
-                            ? [...prev, currency]
-                            : prev.filter((c) => c !== currency)
+                            ? [...prev, currency.code]
+                            : prev.filter((c) => c !== currency.code)
                         );
                       }}
                       className="capitalize"
                     >
-                      {currency.replace('_', ' ')}
+                      {currency.code}
                     </DropdownMenuCheckboxItem>
                   ))}
                 </DropdownMenuContent>
@@ -825,7 +891,7 @@ export default function Invoices() {
                       ))}
                     </TableRow>
                   ))
-                ) : fetchLoading ? (
+                ) : loading ? (
                   <TableRow>
                     <TableCell
                       colSpan={columns.length}
@@ -850,6 +916,12 @@ export default function Invoices() {
         </CardContent>
         <CardFooter>
           <div className="flex flex-col justify-between gap-4 w-full md:flex-row">
+            <div className="flex items-center gap-2 justify-center">
+              <p className="text-sm text-muted-foreground">
+                Selected {table.getFilteredSelectedRowModel().rows.length} of{' '}
+                {table.getFilteredRowModel().rows.length} invoices
+              </p>
+            </div>
             <Pagination>
               <PaginationContent>
                 {/* Previous Button */}

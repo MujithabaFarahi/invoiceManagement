@@ -15,7 +15,13 @@ import {
   limit,
   startAfter,
 } from 'firebase/firestore';
-import type { Customer, Invoice, Payment, PaymentAllocation } from './types';
+import type {
+  Currency,
+  Customer,
+  Invoice,
+  Payment,
+  PaymentAllocation,
+} from './types';
 import { db } from './firebase';
 import { getCountFromServer } from 'firebase/firestore';
 
@@ -32,14 +38,17 @@ export const getCustomerCount = async (): Promise<number> => {
 };
 
 export const getCustomers = async (): Promise<Customer[]> => {
-  const querySnapshot = await getDocs(collection(db, 'customers'));
-  return querySnapshot.docs.map(
-    (doc) =>
-      ({
-        id: doc.id,
-        ...doc.data(),
-      } as Customer)
+  const querySnapshot = await getDocs(
+    query(collection(db, 'customers'), orderBy('createdAt', 'desc'))
   );
+  return querySnapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt.toDate(),
+    } as Customer;
+  });
 };
 
 export const updateCustomer = async (id: string, data: Partial<Customer>) => {
@@ -82,6 +91,7 @@ export const getInvoices = async (): Promise<Invoice[]> => {
     return {
       id: doc.id,
       ...data,
+      date: data.date.toDate(),
       createdAt: data.createdAt.toDate(),
     } as Invoice;
   });
@@ -283,5 +293,16 @@ export const getPaymentAllocations = async (
       ...data,
       createdAt: data.createdAt.toDate(),
     } as PaymentAllocation;
+  });
+};
+
+export const getCurrencies = async (): Promise<Currency[]> => {
+  const querySnapshot = await getDocs(query(collection(db, 'currencies')));
+  return querySnapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+    } as Currency;
   });
 };

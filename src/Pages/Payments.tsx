@@ -46,19 +46,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  getPayments,
-  addPayment,
-  getCustomers,
-  getCustomerInvoices,
-} from '@/Config/firestore';
-import {
-  getPaginationRange,
-  type Customer,
-  type Invoice,
-  type Payment,
-  type SelectedInvoice,
-} from '@/Config/types';
+import { addPayment } from '@/Config/firestore';
+import { getPaginationRange, type Invoice, type Payment } from '@/Config/types';
 import { toast } from 'sonner';
 import { collection, doc, getDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/Config/firebase';
@@ -93,21 +82,47 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { useNavigate } from 'react-router-dom';
+import type { AppDispatch, RootState } from '@/redux/store/store';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  addPaymentToList,
+  fetchCurrencies,
+  fetchCustomers,
+  fetchPayments,
+} from '@/redux/features/paymentSlice';
+import {
+  fetchCustomerInvoices,
+  setAllocatedAmount,
+  setSelectedInvoices,
+} from '@/redux/features/invoiceSlice';
 
 export default function Payments() {
   const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
 
-  const [loading, setLoading] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(false);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const { loading, payments, customers, currencies } = useSelector(
+    (state: RootState) => state.payment
+  );
+
+  const { customerInvoices, selectedInvoices } = useSelector(
+    (state: RootState) => state.invoice
+  );
+
+  useEffect(() => {
+    if (currencies.length === 0) {
+      dispatch(fetchCurrencies());
+    }
+    if (customers.length === 0) {
+      dispatch(fetchCustomers());
+    }
+    if (payments.length === 0) {
+      dispatch(fetchPayments());
+    }
+  }, [dispatch, currencies.length, customers.length, payments.length]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [selectedInvoices, setSelectedInvoices] = useState<SelectedInvoice[]>(
-    []
-  );
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [formData, setFormData] = useState({
     paymentNo: '',
     customerId: '',
@@ -118,47 +133,24 @@ export default function Payments() {
 
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
-  const currencyOptions = ['USD', 'EUR', 'JPY'];
 
   useEffect(() => {
-    fetchPayments();
-    fetchCustomers();
-  }, []);
-
-  useEffect(() => {
-    const fetchInvoices = async () => {
-      try {
-        const data = await getCustomerInvoices(
-          formData.customerId,
-          formData.currency
-        );
-        setInvoices(data);
-
-        // Set all invoices to selectedInvoices with allocatedAmount = 0
-        setSelectedInvoices(
-          data.map((inv) => ({
-            invoiceId: inv.id,
-            allocatedAmount: 0,
-            balance: inv.balance,
-          }))
-        );
-      } catch (error) {
-        console.error('Error fetching invoices:', error);
-        toast.error('Error', {
-          description: 'Failed to fetch invoices',
-        });
-      }
-    };
-
-    fetchInvoices();
-  }, [formData.customerId, formData.currency]);
+    if (formData.customerId && formData.currency) {
+      dispatch(
+        fetchCustomerInvoices({
+          customerId: formData.customerId,
+          currency: formData.currency,
+        })
+      );
+    }
+  }, [formData.customerId, formData.currency, dispatch]);
 
   const allocatePaymentToInvoices = () => {
     const amount = parseFloat(formData.amount);
-    if (!amount || invoices.length === 0) return;
+    if (!amount || customerInvoices.length === 0) return;
 
     let remaining = amount;
-    const allocations = invoices.map((inv) => {
+    const allocations = customerInvoices.map((inv) => {
       if (remaining <= 0) {
         return {
           invoiceId: inv.id,
@@ -177,32 +169,7 @@ export default function Payments() {
       };
     });
 
-    setSelectedInvoices(allocations);
-  };
-
-  const fetchPayments = async () => {
-    try {
-      setFetchLoading(true);
-      const data = await getPayments();
-      setPayments(data);
-    } catch (error) {
-      toast.error('Error', {
-        description: 'Failed to fetch payments',
-      });
-    } finally {
-      setFetchLoading(false);
-    }
-  };
-
-  const fetchCustomers = async () => {
-    try {
-      const data = await getCustomers();
-      setCustomers(data);
-    } catch (error) {
-      toast.error('Error', {
-        description: 'Failed to fetch customers',
-      });
-    }
+    dispatch(setSelectedInvoices(allocations));
   };
 
   const generatePaymentNo = () => {
@@ -274,7 +241,7 @@ export default function Payments() {
     }
 
     try {
-      setLoading(true);
+      setIsLoading(true);
 
       // 1. Add Payment
       const paymentData = {
@@ -338,6 +305,13 @@ export default function Payments() {
 
       await batch.commit();
 
+      dispatch(
+        addPaymentToList({
+          id: paymentId,
+          ...paymentData,
+        })
+      );
+
       toast.success('Success', {
         description: 'Payment recorded and allocated successfully',
       });
@@ -350,16 +324,14 @@ export default function Payments() {
         currency: 'USD',
         date: new Date().toISOString().split('T')[0],
       });
-      setSelectedInvoices([]);
-      fetchPayments();
-      fetchCustomers();
+      dispatch(setSelectedInvoices([]));
     } catch (error) {
       console.error('Error recording payment:', error);
       toast.error('Error', {
         description: 'Failed to record payment',
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -641,11 +613,14 @@ export default function Payments() {
                       </Select>
                     </div>
                   </div>
-                  {invoices.length > 0 ? (
+                  {customerInvoices.length > 0 ? (
                     <div className="grid gap-2 align-end">
                       <Label>Total Due</Label>
                       <p className=" text-orange-500">
-                        {invoices.reduce((sum, inv) => sum + inv.balance, 0)}{' '}
+                        {customerInvoices.reduce(
+                          (sum, inv) => sum + inv.balance,
+                          0
+                        )}{' '}
                         {formData.currency}
                       </p>
                     </div>
@@ -680,66 +655,11 @@ export default function Payments() {
                     Auto Allocate
                   </Button>
                 </div>
-                {/* <div className="grid gap-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                      >
-                        {selectedInvoices.length > 0
-                          ? `${selectedInvoices.length} selected`
-                          : 'Select invoices'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80">
-                      <div className="grid gap-2 max-h-60 overflow-y-auto">
-                        {invoices.map((invoice) => {
-                          const isChecked = selectedInvoices.some(
-                            (item) => item.invoiceId === invoice.id
-                          );
-                          return (
-                            <label
-                              key={invoice.id}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <Checkbox
-                                checked={isChecked}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setSelectedInvoices((prev) => [
-                                      ...prev,
-                                      {
-                                        invoiceId: invoice.id,
-                                        allocatedAmount: 0,
-                                        balance: invoice.balance,
-                                      },
-                                    ]);
-                                  } else {
-                                    setSelectedInvoices((prev) =>
-                                      prev.filter(
-                                        (item) => item.invoiceId !== invoice.id
-                                      )
-                                    );
-                                  }
-                                }}
-                              />
-                              <span className="text-sm">
-                                {invoice.invoiceNo} ({invoice.balance}{' '}
-                                {invoice.currency})
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div> */}
                 {selectedInvoices.length > 0 && (
                   <div className="grid gap-2">
                     <Label>Allocate Amounts</Label>
                     {selectedInvoices.map((item, index) => {
-                      const invoice = invoices.find(
+                      const invoice = customerInvoices.find(
                         (inv) => inv.id === item.invoiceId
                       );
                       return (
@@ -754,12 +674,11 @@ export default function Payments() {
                             value={item.allocatedAmount}
                             onChange={(e) => {
                               const value = parseFloat(e.target.value);
-                              setSelectedInvoices((prev) =>
-                                prev.map((i) =>
-                                  i.invoiceId === item.invoiceId
-                                    ? { ...i, allocatedAmount: value }
-                                    : i
-                                )
+                              dispatch(
+                                setAllocatedAmount({
+                                  invoiceId: item.invoiceId,
+                                  amount: value,
+                                })
                               );
                             }}
                             placeholder="0.00"
@@ -772,7 +691,11 @@ export default function Payments() {
                 )}
               </div>
               <DialogFooter>
-                <Button className="min-w-36" type="submit" isLoading={loading}>
+                <Button
+                  className="min-w-36"
+                  type="submit"
+                  isLoading={isLoading}
+                >
                   Record Payment
                 </Button>
               </DialogFooter>
@@ -805,6 +728,7 @@ export default function Payments() {
                     <DropdownMenuCheckboxItem
                       key={customer.id}
                       checked={selectedCustomers.includes(customer.name)}
+                      onSelect={(e) => e.preventDefault()}
                       onCheckedChange={(checked) => {
                         setSelectedCustomers((prev) =>
                           checked
@@ -826,20 +750,21 @@ export default function Payments() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {currencyOptions.map((currency) => (
+                  {currencies.map((currency) => (
                     <DropdownMenuCheckboxItem
-                      key={currency}
-                      checked={selectedCurrencies.includes(currency)}
+                      key={currency.code}
+                      checked={selectedCurrencies.includes(currency.code)}
+                      onSelect={(e) => e.preventDefault()}
                       onCheckedChange={(checked) => {
                         setSelectedCurrencies((prev) =>
                           checked
-                            ? [...prev, currency]
-                            : prev.filter((c) => c !== currency)
+                            ? [...prev, currency.code]
+                            : prev.filter((c) => c !== currency.code)
                         );
                       }}
                       className="capitalize"
                     >
-                      {currency.replace('_', ' ')}
+                      {currency.code}
                     </DropdownMenuCheckboxItem>
                   ))}
                 </DropdownMenuContent>
@@ -924,7 +849,7 @@ export default function Payments() {
                       ))}
                     </TableRow>
                   ))
-                ) : fetchLoading ? (
+                ) : loading ? (
                   <TableRow>
                     <TableCell
                       colSpan={columns.length}
@@ -949,6 +874,12 @@ export default function Payments() {
         </CardContent>
         <CardFooter>
           <div className="flex flex-col justify-between gap-4 w-full md:flex-row">
+            <div className="flex items-center gap-2 justify-center">
+              <p className="text-sm text-muted-foreground">
+                Selected {table.getFilteredSelectedRowModel().rows.length} of{' '}
+                {table.getFilteredRowModel().rows.length} payments
+              </p>
+            </div>
             <Pagination>
               <PaginationContent>
                 {/* Previous Button */}
