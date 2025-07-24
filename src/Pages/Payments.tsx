@@ -5,6 +5,7 @@ import type React from 'react';
 import { useEffect, useState } from 'react';
 import {
   ArrowUpDown,
+  CalendarIcon,
   ChevronDown,
   FilterX,
   MoreHorizontal,
@@ -48,7 +49,15 @@ import {
 import { addPayment } from '@/Config/firestore';
 import { getPaginationRange, type Invoice, type Payment } from '@/Config/types';
 import { toast } from 'sonner';
-import { collection, doc, getDoc, writeBatch } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
 import { db } from '@/Config/firebase';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -95,6 +104,13 @@ import {
   setSelectedInvoices,
 } from '@/redux/features/invoiceSlice';
 import { Spinner } from '@/components/ui/spinner';
+import { format } from 'date-fns';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 export default function Payments() {
   const navigate = useNavigate();
@@ -122,13 +138,16 @@ export default function Payments() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     paymentNo: '',
     customerId: '',
     amount: '',
+    localBankPayment: '',
+    foreignBankPayment: '',
     currency: 'USD',
-    date: new Date().toISOString().split('T')[0],
+    date: new Date(),
   });
 
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
@@ -145,10 +164,14 @@ export default function Payments() {
     }
   }, [formData.customerId, formData.currency, dispatch]);
 
-  const allocatePaymentToInvoices = (value: string) => {
-    const amount = parseFloat(value);
+  const getTotalDue = () => {
+    return customerInvoices.reduce((sum, inv) => sum + inv.balance, 0);
+  };
 
-    if (!amount || customerInvoices.length === 0) return;
+  const allocatePaymentToInvoices = (value: string) => {
+    const amount = parseFloat(value) ?? 0;
+
+    if (customerInvoices.length === 0) return;
 
     let remaining = amount;
     const allocations = customerInvoices.map((inv) => {
@@ -157,6 +180,8 @@ export default function Payments() {
           invoiceId: inv.id,
           allocatedAmount: 0,
           balance: inv.balance,
+          foreignBankPayment: 0,
+          localBankPayment: 0,
         };
       }
 
@@ -167,6 +192,8 @@ export default function Payments() {
         invoiceId: inv.id,
         allocatedAmount: alloc,
         balance: inv.balance,
+        foreignBankPayment: 0,
+        localBankPayment: 0,
       };
     });
 
@@ -202,11 +229,16 @@ export default function Payments() {
       return;
     }
 
-    const nonZeroAllocations = selectedInvoices.filter(
-      (i) => i.allocatedAmount > 0
-    );
+    const localBankPayment = parseFloat(formData.localBankPayment) || 0;
+    const foreignBankPayment = parseFloat(formData.foreignBankPayment) || 0;
 
-    // Now save nonZeroAllocations
+    const nonZeroAllocations = selectedInvoices
+      .filter((i) => i.allocatedAmount > 0)
+      .map((invoice, index) => ({
+        ...invoice,
+        foreignBankPayment: index === 0 ? foreignBankPayment : 0,
+        localBankPayment: index === 0 ? localBankPayment : 0,
+      }));
 
     const amount = Number.parseFloat(formData.amount);
     const totalAllocated = nonZeroAllocations.reduce(
@@ -247,13 +279,15 @@ export default function Payments() {
       // 1. Add Payment
       const paymentData = {
         paymentNo: formData.paymentNo,
-        date: new Date(formData.date),
+        date: formData.date,
         customerId: formData.customerId,
         customerName: customer.name,
         currency: formData.currency,
         amount,
         allocatedAmount: totalAllocated,
         remainingAmount: amount - totalAllocated,
+        foreignBankPayment,
+        localBankPayment,
         createdAt: new Date(),
       };
 
@@ -267,17 +301,24 @@ export default function Payments() {
         if (!invoiceSnap.exists()) continue;
 
         const invoice = invoiceSnap.data() as Invoice;
+        console.log(invoice);
         const newAmountPaid = invoice.amountPaid + alloc.allocatedAmount;
         const newBalance = invoice.totalAmount - newAmountPaid;
         const newStatus = newBalance === 0 ? 'paid' : 'partially_paid';
+        const newForeignBankPayment =
+          invoice.foreignBankPayment + alloc.foreignBankPayment;
+        const newLocalBankPayment =
+          invoice.localBankPayment + alloc.localBankPayment;
 
         batch.update(invoiceRef, {
           amountPaid: newAmountPaid,
           balance: newBalance,
           status: newStatus,
+          foreignBankPayment: newForeignBankPayment,
+          localBankPayment: newLocalBankPayment,
         });
 
-        // 3. Add to paymentAllocations
+        // Set bank payment values only for the first allocation
         const allocRef = doc(collection(db, 'paymentAllocations'));
         batch.set(allocRef, {
           paymentId,
@@ -285,20 +326,30 @@ export default function Payments() {
           invoiceNo: invoice.invoiceNo,
           allocatedAmount: alloc.allocatedAmount,
           createdAt: new Date(),
+          localBankPayment: alloc.localBankPayment,
+          foreignBankPayment: alloc.foreignBankPayment,
         });
       }
 
-      // 4. Update Customer Due
-      const customerRef = doc(db, 'customers', formData.customerId);
-      const customerSnap = await getDoc(customerRef);
-      if (customerSnap.exists()) {
-        const currentDue = customerSnap.data().amountDue || 0;
-        batch.update(customerRef, {
-          amountDue: Math.max(0, currentDue - totalAllocated),
+      // 5. Update Currency Due
+      const currencyQuery = query(
+        collection(db, 'currencies'),
+        where('code', '==', formData.currency)
+      );
+      const currencySnap = await getDocs(currencyQuery);
+      if (!currencySnap.empty) {
+        const currencyDoc = currencySnap.docs[0];
+        const currencyData = currencyDoc.data();
+        const currentAmountDue = currencyData.amountDue || 0;
+        const currentAmountPaid = currencyData.amountPaid || 0;
+
+        batch.update(currencyDoc.ref, {
+          amountDue: Math.max(0, currentAmountDue - totalAllocated),
+          amountPaid: currentAmountPaid + totalAllocated,
         });
       }
 
-      // 5. Update Payment allocation info
+      // 6. Update Payment allocation info
       batch.update(doc(db, 'payments', paymentId), {
         allocatedAmount: totalAllocated,
         remainingAmount: amount - totalAllocated,
@@ -322,8 +373,10 @@ export default function Payments() {
         paymentNo: '',
         customerId: '',
         amount: '',
+        localBankPayment: '',
+        foreignBankPayment: '',
         currency: 'USD',
-        date: new Date().toISOString().split('T')[0],
+        date: new Date(),
       });
       dispatch(setSelectedInvoices([]));
     } catch (error) {
@@ -392,7 +445,7 @@ export default function Payments() {
       },
       cell: ({ row }) => (
         <div className="capitalize">
-          {new Date(row.getValue('createdAt')).toLocaleDateString()}
+          {new Date(row.getValue('createdAt')).toISOString().split('T')[0]}
         </div>
       ),
     },
@@ -522,12 +575,15 @@ export default function Payments() {
             <Button
               className="min-w-36"
               onClick={() => {
+                setErrorMessage(null);
                 setFormData({
                   paymentNo: generatePaymentNo(),
                   customerId: '',
                   amount: '',
+                  localBankPayment: '',
+                  foreignBankPayment: '',
                   currency: 'USD',
-                  date: new Date().toISOString().split('T')[0],
+                  date: new Date(),
                 });
                 dispatch(resetCustomerInvoices());
               }}
@@ -536,7 +592,11 @@ export default function Payments() {
               Record Payment
             </Button>
           </DialogTrigger>
-          <DialogContent className="m-4 overflow-y-auto max-h-[90vh]">
+          <DialogContent
+            onPointerDownOutside={(e) => e.preventDefault()}
+            // onEscapeKeyDown={(e) => e.preventDefault()}
+            className="overflow-y-auto max-h-[90vh]"
+          >
             <DialogHeader>
               <DialogTitle>Record New Payment</DialogTitle>
               <DialogDescription>
@@ -559,18 +619,36 @@ export default function Payments() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="date">Payment Date *</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, date: e.target.value })
-                    }
-                    required
-                  />
-                </div>{' '}
-                <div className="flex gap-4 justify-between">
+                  <Label>Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={'outline'}
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.date ? (
+                          format(formData.date, 'PPP')
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={formData.date}
+                        captionLayout="dropdown"
+                        onSelect={(date) => {
+                          if (date) {
+                            setFormData({ ...formData, date });
+                          }
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="flex flex-col md:flex-row gap-4 justify-between">
                   <div className="flex gap-4 ">
                     <div className="grid gap-2">
                       <Label htmlFor="customer">Customer *</Label>
@@ -628,12 +706,9 @@ export default function Payments() {
                   {customerInvoices.length > 0 ? (
                     <div className="grid gap-2 align-end">
                       <Label>Total Due</Label>
+
                       <p className=" text-orange-500">
-                        {customerInvoices.reduce(
-                          (sum, inv) => sum + inv.balance,
-                          0
-                        )}{' '}
-                        {formData.currency}
+                        {getTotalDue()} {formData.currency}
                       </p>
                     </div>
                   ) : (
@@ -650,13 +725,67 @@ export default function Payments() {
                     type="number"
                     step="0.01"
                     value={formData.amount}
+                    min="0"
+                    max={getTotalDue()}
                     onChange={(e) => {
+                      const max = getTotalDue();
+
+                      if (parseFloat(e.target.value) > max) {
+                        setErrorMessage('Allocated amount exceeds total due');
+                      } else {
+                        setErrorMessage(null);
+                      }
+
                       setFormData({ ...formData, amount: e.target.value });
-                      allocatePaymentToInvoices(e.target.value);
+
+                      if (e.target.value) {
+                        allocatePaymentToInvoices(e.target.value);
+                      } else {
+                        allocatePaymentToInvoices('0');
+                      }
                     }}
                     placeholder="0.00"
                     required
                   />
+                  {errorMessage && (
+                    <p className="text-red-500">{errorMessage}</p>
+                  )}
+                </div>
+                <div className="grid md:grid-cols-2 gap-4 w-full">
+                  <div className="grid gap-2 w-full">
+                    <Label htmlFor="foreignBankPayment">
+                      Foreign Bank Payment
+                    </Label>
+                    <Input
+                      id="foreignBankPayment"
+                      type="number"
+                      step="0.01"
+                      value={formData.foreignBankPayment}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          foreignBankPayment: e.target.value,
+                        })
+                      }
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="grid gap-2 w-full">
+                    <Label htmlFor="localBankPayment">Local Bank Payment</Label>
+                    <Input
+                      id="localBankPayment"
+                      type="number"
+                      step="0.01"
+                      value={formData.localBankPayment}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          localBankPayment: e.target.value,
+                        })
+                      }
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
                 {selectedInvoices.length > 0 && (
                   <div className="grid gap-2">
@@ -668,8 +797,12 @@ export default function Payments() {
                       return (
                         <div key={index} className="flex items-center gap-2">
                           <span className="flex-1">
-                            Invoice No: {invoice?.invoiceNo} (
-                            {invoice?.currency} {invoice?.balance})
+                            Invoice No:
+                            <span className="font-semibold">
+                              {' '}
+                              {invoice?.invoiceNo}{' '}
+                            </span>
+                            ({invoice?.currency} {invoice?.balance})
                           </span>
                           <Input
                             type="number"
@@ -677,7 +810,7 @@ export default function Payments() {
                             readOnly
                             value={item.allocatedAmount}
                             placeholder="0.00"
-                            className="w-32"
+                            className="w-32 bg-muted text-center  border border-muted-foreground"
                           />
                         </div>
                       );
@@ -868,7 +1001,7 @@ export default function Payments() {
                       colSpan={columns.length}
                       className="h-24 text-center"
                     >
-                      No Invoices Found
+                      No Payments Found
                     </TableCell>
                   </TableRow>
                 )}

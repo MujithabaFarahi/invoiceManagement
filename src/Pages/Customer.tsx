@@ -95,11 +95,13 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
+import { fetchInvoices } from '@/redux/features/invoiceSlice';
 
 export default function Customers() {
   const dispatch = useDispatch<AppDispatch>();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState({
@@ -116,14 +118,19 @@ export default function Customers() {
     (state: RootState) => state.payment
   );
 
+  const { invoices } = useSelector((state: RootState) => state.invoice);
+
   useEffect(() => {
     if (currencies.length === 0) {
       dispatch(fetchCurrencies());
     }
+    if (invoices.length === 0) {
+      dispatch(fetchInvoices());
+    }
     if (customers.length === 0) {
       dispatch(fetchCustomers());
     }
-  }, [dispatch, currencies.length, customers.length]);
+  }, [dispatch, currencies.length, customers.length, invoices.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,7 +150,6 @@ export default function Customers() {
           updateCustomerInList({
             id: editingCustomer.id,
             createdAt: editingCustomer.createdAt,
-            amountDue: editingCustomer.amountDue,
             ...formData,
           })
         );
@@ -153,7 +159,6 @@ export default function Customers() {
       } else {
         const id = await addCustomer({
           ...formData,
-          amountDue: 0,
           createdAt: new Date(),
         });
 
@@ -161,7 +166,6 @@ export default function Customers() {
           addCustomerToList({
             id,
             ...formData,
-            amountDue: 0,
             createdAt: new Date(),
           })
         );
@@ -203,23 +207,23 @@ export default function Customers() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this customer?')) {
-      try {
-        setIsLoading(true);
-        await deleteCustomer(id);
-        toast.success('Success', {
-          description: 'Customer deleted successfully',
-        });
+    try {
+      setIsLoading(true);
+      await deleteCustomer(id);
+      toast.success('Success', {
+        description: 'Customer deleted successfully',
+      });
 
-        dispatch(deleteCustomerFromList(id));
-      } catch (error) {
-        console.error('Error deleting customer:', error);
-        toast.error('Error', {
-          description: 'Failed to delete customer',
-        });
-      } finally {
-        setIsLoading(false);
-      }
+      dispatch(deleteCustomerFromList(id));
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      toast.error('Error', {
+        description: 'Failed to delete customer',
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setEditingCustomer(null);
+      setIsLoading(false);
     }
   };
 
@@ -314,29 +318,6 @@ export default function Customers() {
         <div className="capitalize">{row.getValue('currency')}</div>
       ),
     },
-    {
-      accessorKey: 'amountDue',
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          >
-            Amount
-            <ArrowUpDown />
-          </Button>
-        );
-      },
-      cell: ({ row }) => {
-        const amount = parseFloat(row.getValue('amountDue'));
-        // Format the amount as a dollar amount
-        const formatted = new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: row.getValue('currency') || 'USD',
-        }).format(amount);
-        return <div>{formatted}</div>;
-      },
-    },
 
     {
       id: 'actions',
@@ -370,7 +351,19 @@ export default function Customers() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
-                  handleDelete(customer.id);
+                  const length = invoices.filter(
+                    (invoice) => invoice.customerId === customer.id
+                  ).length;
+
+                  if (length > 0) {
+                    toast.error('Error', {
+                      description:
+                        'Cannot delete customer with existing invoices',
+                    });
+                  } else {
+                    setEditingCustomer(customer);
+                    setIsDeleteDialogOpen(true);
+                  }
                 }}
               >
                 <Trash2 className="text-red-700" />
@@ -429,6 +422,35 @@ export default function Customers() {
           <p className="text-muted-foreground">Manage your customer database</p>
         </div>
 
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <p className=" text-muted-foreground font-semibold">
+              Are you sure you want to delete this customer? This action cannot
+              be undone.
+            </p>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                isLoading={isLoading}
+                onClick={() => {
+                  if (editingCustomer) {
+                    handleDelete(editingCustomer.id);
+                  }
+                }}
+              >
+                Delete Customer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button
@@ -448,7 +470,7 @@ export default function Customers() {
               Add Customer
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
             <DialogHeader>
               <DialogTitle>
                 {editingCustomer ? 'Edit Customer' : 'Add New Customer'}

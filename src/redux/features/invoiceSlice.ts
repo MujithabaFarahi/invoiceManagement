@@ -89,6 +89,8 @@ const invoiceSlice = createSlice({
       );
       if (item) {
         item.allocatedAmount = action.payload.amount;
+        item.foreignBankPayment = 0;
+        item.localBankPayment = 0;
       }
     },
     addInvoiceToList: (state, action: PayloadAction<Invoice>) => {
@@ -136,6 +138,8 @@ const invoiceSlice = createSlice({
           invoiceId: inv.id,
           allocatedAmount: 0,
           balance: inv.balance,
+          foreignBankPayment: 0,
+          localBankPayment: 0,
         }));
       })
       .addCase(fetchCustomerInvoices.rejected, (state, action) => {

@@ -61,17 +61,22 @@ export const deleteCustomer = async (id: string) => {
 
 // Invoice operations
 export const addInvoice = async (invoice: Omit<Invoice, 'id'>) => {
-  const docRef = await addDoc(collection(db, 'invoices'), invoice);
+  const invoiceAmount = invoice.totalAmount;
 
-  // Update customer's amount due
-  const customerRef = doc(db, 'customers', invoice.customerId);
-  const customerDoc = await getDoc(customerRef);
-  if (customerDoc.exists()) {
-    const currentAmountDue = customerDoc.data().amountDue || 0;
-    await updateDoc(customerRef, {
-      amountDue: currentAmountDue + invoice.totalAmount,
+  const currencyQuery = query(
+    collection(db, 'currencies'),
+    where('code', '==', invoice.currency)
+  );
+  const currencySnap = await getDocs(currencyQuery);
+  if (!currencySnap.empty) {
+    const currencyDoc = currencySnap.docs[0];
+    const currentAmountDue = currencyDoc.data().amountDue || 0;
+    await updateDoc(currencyDoc.ref, {
+      amountDue: currentAmountDue + invoiceAmount,
     });
   }
+
+  const docRef = await addDoc(collection(db, 'invoices'), invoice);
 
   return docRef.id;
 };
@@ -165,11 +170,79 @@ export const getInvoicesData = async (
 };
 
 export const updateInvoice = async (id: string, data: Partial<Invoice>) => {
-  await updateDoc(doc(db, 'invoices', id), data);
+  const invoiceRef = doc(db, 'invoices', id);
+  const invoiceSnap = await getDoc(invoiceRef);
+
+  if (!invoiceSnap.exists()) {
+    throw new Error('Invoice not found');
+  }
+
+  const oldInvoice = invoiceSnap.data() as Invoice;
+  const oldAmount = oldInvoice.totalAmount;
+  const newAmount = data.totalAmount;
+  const oldCurrency = oldInvoice.currency;
+  const newCurrency = data.currency;
+
+  // 1. Subtract oldAmount from old currency
+  const oldCurrencyQuery = query(
+    collection(db, 'currencies'),
+    where('code', '==', oldCurrency)
+  );
+  const oldCurrencySnap = await getDocs(oldCurrencyQuery);
+  if (!oldCurrencySnap.empty) {
+    const oldCurrencyDoc = oldCurrencySnap.docs[0];
+    const currentDue = oldCurrencyDoc.data().amountDue || 0;
+    await updateDoc(oldCurrencyDoc.ref, {
+      amountDue: currentDue - oldAmount,
+    });
+  }
+
+  // 2. Add newAmount to new currency
+  const newCurrencyQuery = query(
+    collection(db, 'currencies'),
+    where('code', '==', newCurrency)
+  );
+  const newCurrencySnap = await getDocs(newCurrencyQuery);
+  if (!newCurrencySnap.empty) {
+    const newCurrencyDoc = newCurrencySnap.docs[0];
+    const currentDue = newCurrencyDoc.data().amountDue || 0;
+    await updateDoc(newCurrencyDoc.ref, {
+      amountDue: currentDue + newAmount,
+    });
+  }
+
+  // 3. Update the invoice
+  await updateDoc(invoiceRef, data);
 };
 
 export const deleteInvoice = async (id: string) => {
-  await deleteDoc(doc(db, 'invoices', id));
+  const invoiceRef = doc(db, 'invoices', id);
+  const invoiceSnap = await getDoc(invoiceRef);
+
+  if (!invoiceSnap.exists()) {
+    throw new Error('Invoice not found');
+  }
+
+  const invoice = invoiceSnap.data() as Invoice;
+  const { currency, totalAmount } = invoice;
+
+  // 1. Update currency's amountDue
+  const currencyQuery = query(
+    collection(db, 'currencies'),
+    where('code', '==', currency)
+  );
+  const currencySnap = await getDocs(currencyQuery);
+
+  if (!currencySnap.empty) {
+    const currencyDoc = currencySnap.docs[0];
+    const currentDue = currencyDoc.data().amountDue || 0;
+    await updateDoc(currencyDoc.ref, {
+      amountDue: Math.max(0, currentDue - totalAmount),
+    });
+  }
+
+  // 2. Delete invoice
+  await deleteDoc(invoiceRef);
 };
 
 // Payment operations

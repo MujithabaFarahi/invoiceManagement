@@ -44,6 +44,7 @@ export const fetchPayments = createAsyncThunk<Payment[]>(
       const data = await getPayments();
       return data;
     } catch (error) {
+      console.error('Error fetching payments:', error);
       return rejectWithValue('Failed to fetch payments');
     }
   }
@@ -56,6 +57,7 @@ export const fetchCustomers = createAsyncThunk<Customer[]>(
       const data = await getCustomers();
       return data;
     } catch (error) {
+      console.error('Error fetching customers:', error);
       return rejectWithValue('Failed to fetch Customers');
     }
   }
@@ -68,6 +70,7 @@ export const fetchCurrencies = createAsyncThunk<Currency[]>(
       const data = await getCurrencies();
       return data;
     } catch (error) {
+      console.error('Error fetching currencies:', error);
       return rejectWithValue('Failed to fetch Currencies');
     }
   }

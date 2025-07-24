@@ -5,7 +5,6 @@ export interface Customer {
   phone?: string;
   address?: string;
   currency: string;
-  amountDue: number;
   createdAt: Date;
 }
 
@@ -20,27 +19,25 @@ export interface Invoice {
   balance: number;
   status: 'pending' | 'partially_paid' | 'paid';
   date: Date;
+  foreignBankPayment: number;
+  localBankPayment: number;
   createdAt: Date;
-  items?: InvoiceItem[];
 }
 
 export interface SelectedInvoice {
   invoiceId: string;
   allocatedAmount: number;
   balance: number;
+  foreignBankPayment: number;
+  localBankPayment: number;
 }
 
 export interface Currency {
   id: string;
   code: string;
   name: string;
-}
-
-export interface InvoiceItem {
-  description: string;
-  quantity: number;
-  rate: number;
-  amount: number;
+  amountDue: number;
+  amountPaid: number;
 }
 
 export interface Payment {
@@ -53,6 +50,8 @@ export interface Payment {
   amount: number;
   allocatedAmount: number;
   remainingAmount: number;
+  foreignBankPayment: number;
+  localBankPayment: number;
   createdAt: Date;
 }
 
@@ -62,6 +61,8 @@ export interface PaymentAllocation {
   invoiceId: string;
   invoiceNo: string;
   allocatedAmount: number;
+  foreignBankPayment: number;
+  localBankPayment: number;
   createdAt: Date;
 }
 

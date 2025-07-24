@@ -125,6 +125,8 @@ export default function Invoices() {
       const invoices = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
+        date: doc.data().date.toDate(),
+        createdAt: doc.data().createdAt.toDate(),
       })) as Invoice[];
 
       dispatch(setInvoices(invoices));
@@ -195,6 +197,8 @@ export default function Invoices() {
         balance: totalAmount,
         status: 'pending' as const,
         date: formData.date,
+        foreignBankPayment: 0,
+        localBankPayment: 0,
       };
 
       if (editingInvoice) {
@@ -349,7 +353,7 @@ export default function Invoices() {
       },
       cell: ({ row }) => (
         <div className="capitalize">
-          {new Date(row.getValue('date')).toLocaleDateString()}
+          {new Date(row.getValue('date')).toISOString().split('T')[0]}
         </div>
       ),
     },
@@ -578,6 +582,7 @@ export default function Invoices() {
                   currency: 'USD',
                   date: new Date(),
                 });
+                setErrorMessage(null);
               }}
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -586,9 +591,8 @@ export default function Invoices() {
           </DialogTrigger>
 
           <DialogContent
-            // Prevent closing on outside click or escape key
             onPointerDownOutside={(e) => e.preventDefault()}
-            onEscapeKeyDown={(e) => e.preventDefault()}
+            // onEscapeKeyDown={(e) => e.preventDefault()}
           >
             <DialogHeader>
               <DialogTitle>
