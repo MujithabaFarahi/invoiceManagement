@@ -529,7 +529,15 @@ export default function Customers() {
                   />
                 </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="mt-4">
+                <Button
+                  type="button"
+                  className="min-w-36"
+                  variant={'outline'}
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
                 <Button
                   className="min-w-36"
                   type="submit"

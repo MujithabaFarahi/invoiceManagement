@@ -107,7 +107,8 @@ export const getCustomerInvoices = async (
     invoicesRef,
     where('customerId', '==', customerId),
     where('currency', '==', currency),
-    where('balance', '>', 0)
+    where('balance', '>', 0),
+    orderBy('createdAt', 'asc')
   );
 
   const querySnapshot = await getDocs(q);

@@ -5,7 +5,6 @@ import {
 } from '@reduxjs/toolkit';
 import { getCustomerInvoices, getInvoices } from '@/Config/firestore';
 import type {
-  Customer,
   Invoice,
   PaymentAllocation,
   SelectedInvoice,
@@ -18,7 +17,6 @@ export interface invoiceState {
   error: boolean;
   success: boolean;
   paymentAllocations: PaymentAllocation[];
-  customers: Customer[];
   invoices: Invoice[];
   customerInvoices: Invoice[];
   selectedInvoices: SelectedInvoice[];
@@ -31,7 +29,6 @@ const initialState: invoiceState = {
   error: false,
   success: false,
   paymentAllocations: [],
-  customers: [],
   invoices: [],
   customerInvoices: [],
   selectedInvoices: [],
@@ -44,6 +41,7 @@ export const fetchInvoices = createAsyncThunk<Invoice[]>(
       const data = await getInvoices();
       return data;
     } catch (error) {
+      console.error('Error fetching invoices:', error);
       return rejectWithValue('Failed to fetch Invoices');
     }
   }
@@ -59,6 +57,7 @@ export const fetchCustomerInvoices = createAsyncThunk<
       const data = await getCustomerInvoices(customerId, currency);
       return data;
     } catch (error) {
+      console.error('Error fetching customer invoices:', error);
       return rejectWithValue('Failed to fetch invoices');
     }
   }
@@ -71,8 +70,15 @@ const invoiceSlice = createSlice({
     setIsLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
     },
+    setInvoices: (state, action: PayloadAction<Invoice[]>) => {
+      state.invoices = action.payload;
+    },
     setSelectedInvoices: (state, action: PayloadAction<SelectedInvoice[]>) => {
       state.selectedInvoices = action.payload;
+    },
+    resetCustomerInvoices: (state) => {
+      state.customerInvoices = [];
+      state.selectedInvoices = [];
     },
     setAllocatedAmount: (
       state,
@@ -142,6 +148,8 @@ const invoiceSlice = createSlice({
 
 export const {
   setIsLoading,
+  setInvoices,
+  resetCustomerInvoices,
   setSelectedInvoices,
   setAllocatedAmount,
   addInvoiceToList,

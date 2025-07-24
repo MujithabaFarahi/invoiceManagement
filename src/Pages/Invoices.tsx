@@ -85,12 +85,7 @@ import {
 } from '@/components/ui/pagination';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '@/redux/store/store';
-import {
-  addInvoiceToList,
-  deleteInvoiceFromList,
-  fetchInvoices,
-  updateInvoiceInList,
-} from '@/redux/features/invoiceSlice';
+import { setInvoices } from '@/redux/features/invoiceSlice';
 import { fetchCurrencies, fetchCustomers } from '@/redux/features/paymentSlice';
 import { Spinner } from '@/components/ui/spinner';
 import {
@@ -99,6 +94,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { db } from '@/Config/firebase';
 
 export default function Invoices() {
   const dispatch = useDispatch<AppDispatch>();
@@ -112,9 +109,6 @@ export default function Invoices() {
   );
 
   useEffect(() => {
-    if (invoices.length === 0) {
-      dispatch(fetchInvoices());
-    }
     if (currencies.length === 0) {
       dispatch(fetchCurrencies());
     }
@@ -122,6 +116,27 @@ export default function Invoices() {
       dispatch(fetchCustomers());
     }
   }, [dispatch, invoices.length, currencies.length, customers.length]);
+
+  const listenToInvoices = (dispatch: AppDispatch) => {
+    const invoicesRef = collection(db, 'invoices');
+    const q = query(invoicesRef, orderBy('createdAt', 'desc'));
+
+    const unsub = onSnapshot(q, (snapshot) => {
+      const invoices = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Invoice[];
+
+      dispatch(setInvoices(invoices));
+    });
+
+    return unsub;
+  };
+
+  useEffect(() => {
+    const unsubscribe = listenToInvoices(dispatch);
+    return () => unsubscribe(); // cleanup listener
+  }, [dispatch]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -184,37 +199,30 @@ export default function Invoices() {
 
       if (editingInvoice) {
         await updateInvoice(editingInvoice.id, invoiceData);
-        dispatch(
-          updateInvoiceInList({
-            id: editingInvoice.id,
-            invoiceNo: formData.invoiceNo,
-            customerId: formData.customerId,
-            currency: formData.currency,
-            date: formData.date,
-            customerName: customer.name,
-            totalAmount,
-            amountPaid: 0,
-            balance: totalAmount,
-            status: 'pending' as const,
-            createdAt: editingInvoice.createdAt,
-          })
-        );
+        // dispatch(
+        //   updateInvoiceInList({
+        //     id: editingInvoice.id,
+        //     invoiceNo: formData.invoiceNo,
+        //     customerId: formData.customerId,
+        //     currency: formData.currency,
+        //     date: formData.date,
+        //     customerName: customer.name,
+        //     totalAmount,
+        //     amountPaid: 0,
+        //     balance: totalAmount,
+        //     status: 'pending' as const,
+        //     createdAt: editingInvoice.createdAt,
+        //   })
+        // );
         toast.success('Success', {
           description: 'Invoice updated successfully',
         });
       } else {
-        const id = await addInvoice({
+        await addInvoice({
           createdAt: new Date(),
           ...invoiceData,
         });
 
-        dispatch(
-          addInvoiceToList({
-            id,
-            ...invoiceData,
-            createdAt: new Date(),
-          })
-        );
         toast.success('Success', {
           description: 'Invoice created successfully',
         });
@@ -258,7 +266,7 @@ export default function Invoices() {
         toast.success('Success', {
           description: 'Invoice deleted successfully',
         });
-        dispatch(deleteInvoiceFromList(id));
+        // dispatch(deleteInvoiceFromList(id));
       } catch (error) {
         console.error('Error deleting invoice:', error);
         toast.error('Error', {
@@ -576,7 +584,12 @@ export default function Invoices() {
               Create Invoice
             </Button>
           </DialogTrigger>
-          <DialogContent>
+
+          <DialogContent
+            // Prevent closing on outside click or escape key
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+          >
             <DialogHeader>
               <DialogTitle>
                 {editingInvoice ? 'Edit Invoice' : 'Create New Invoice'}
@@ -628,10 +641,11 @@ export default function Invoices() {
                         )}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
+                    <PopoverContent align="start" className="w-auto p-0">
                       <Calendar
                         mode="single"
                         selected={formData.date}
+                        captionLayout="dropdown"
                         onSelect={(date) => {
                           if (date) {
                             setFormData({ ...formData, date });
@@ -704,7 +718,15 @@ export default function Invoices() {
                   />
                 </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="mt-4">
+                <Button
+                  className="min-w-36"
+                  variant={'outline'}
+                  type="button"
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
                 <Button
                   className="min-w-36"
                   type="submit"

@@ -91,6 +91,7 @@ import {
 } from '@/redux/features/paymentSlice';
 import {
   fetchCustomerInvoices,
+  resetCustomerInvoices,
   setAllocatedAmount,
   setSelectedInvoices,
 } from '@/redux/features/invoiceSlice';
@@ -145,8 +146,9 @@ export default function Payments() {
     }
   }, [formData.customerId, formData.currency, dispatch]);
 
-  const allocatePaymentToInvoices = () => {
-    const amount = parseFloat(formData.amount);
+  const allocatePaymentToInvoices = (value: string) => {
+    const amount = parseFloat(value);
+
     if (!amount || customerInvoices.length === 0) return;
 
     let remaining = amount;
@@ -528,7 +530,7 @@ export default function Payments() {
                   currency: 'USD',
                   date: new Date().toISOString().split('T')[0],
                 });
-                setSelectedInvoices([]);
+                dispatch(resetCustomerInvoices());
               }}
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -642,29 +644,20 @@ export default function Payments() {
                     </div>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  <div className="grid gap-2 w-full">
-                    <Label htmlFor="amount">Amount *</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      step="0.01"
-                      value={formData.amount}
-                      onChange={(e) =>
-                        setFormData({ ...formData, amount: e.target.value })
-                      }
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="self-end"
-                    onClick={allocatePaymentToInvoices}
-                  >
-                    Auto Allocate
-                  </Button>
+                <div className="grid gap-2 w-full">
+                  <Label htmlFor="amount">Amount *</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    value={formData.amount}
+                    onChange={(e) => {
+                      setFormData({ ...formData, amount: e.target.value });
+                      allocatePaymentToInvoices(e.target.value);
+                    }}
+                    placeholder="0.00"
+                    required
+                  />
                 </div>
                 {selectedInvoices.length > 0 && (
                   <div className="grid gap-2">
@@ -676,22 +669,14 @@ export default function Payments() {
                       return (
                         <div key={index} className="flex items-center gap-2">
                           <span className="flex-1">
-                            {invoice?.invoiceNo} ({invoice?.currency}{' '}
-                            {invoice?.balance})
+                            Invoice No: {invoice?.invoiceNo} (
+                            {invoice?.currency} {invoice?.balance})
                           </span>
                           <Input
                             type="number"
                             step="0.01"
+                            readOnly
                             value={item.allocatedAmount}
-                            onChange={(e) => {
-                              const value = parseFloat(e.target.value);
-                              dispatch(
-                                setAllocatedAmount({
-                                  invoiceId: item.invoiceId,
-                                  amount: value,
-                                })
-                              );
-                            }}
                             placeholder="0.00"
                             className="w-32"
                           />
@@ -701,7 +686,15 @@ export default function Payments() {
                   </div>
                 )}
               </div>
-              <DialogFooter>
+              <DialogFooter className="mt-4">
+                <Button
+                  type="button"
+                  className="min-w-36"
+                  variant={'outline'}
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
                 <Button
                   className="min-w-36"
                   type="submit"
