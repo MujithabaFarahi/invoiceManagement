@@ -8,12 +8,13 @@ import {
   ArrowUpDown,
   MoreHorizontal,
   ChevronDown,
-  Loader2,
   FilterX,
   Trash2,
   Edit,
+  CalendarIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { format } from 'date-fns';
 import {
   Card,
   CardContent,
@@ -91,6 +92,13 @@ import {
   updateInvoiceInList,
 } from '@/redux/features/invoiceSlice';
 import { fetchCurrencies, fetchCustomers } from '@/redux/features/paymentSlice';
+import { Spinner } from '@/components/ui/spinner';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 export default function Invoices() {
   const dispatch = useDispatch<AppDispatch>();
@@ -130,7 +138,7 @@ export default function Invoices() {
     customerId: '',
     totalAmount: '',
     currency: 'USD',
-    date: new Date().toISOString().split('T')[0],
+    date: new Date(),
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -171,8 +179,7 @@ export default function Invoices() {
         currency: formData.currency,
         balance: totalAmount,
         status: 'pending' as const,
-        date: new Date(formData.date),
-        createdAt: new Date(),
+        date: formData.date,
       };
 
       if (editingInvoice) {
@@ -183,7 +190,7 @@ export default function Invoices() {
             invoiceNo: formData.invoiceNo,
             customerId: formData.customerId,
             currency: formData.currency,
-            date: new Date(formData.date),
+            date: formData.date,
             customerName: customer.name,
             totalAmount,
             amountPaid: 0,
@@ -196,12 +203,16 @@ export default function Invoices() {
           description: 'Invoice updated successfully',
         });
       } else {
-        const id = await addInvoice(invoiceData);
+        const id = await addInvoice({
+          createdAt: new Date(),
+          ...invoiceData,
+        });
 
         dispatch(
           addInvoiceToList({
             id,
             ...invoiceData,
+            createdAt: new Date(),
           })
         );
         toast.success('Success', {
@@ -216,9 +227,10 @@ export default function Invoices() {
         customerId: '',
         totalAmount: '',
         currency: 'USD',
-        date: new Date().toISOString().split('T')[0],
+        date: new Date(),
       });
     } catch (error) {
+      console.error('Error saving invoice:', error);
       toast.error('Error', {
         description: 'Failed to save invoice',
       });
@@ -234,7 +246,7 @@ export default function Invoices() {
       customerId: invoice.customerId,
       totalAmount: invoice.totalAmount.toString(),
       currency: invoice.currency,
-      date: invoice.date.toISOString().split('T')[0],
+      date: invoice.date,
     });
     setIsDialogOpen(true);
   };
@@ -248,6 +260,7 @@ export default function Invoices() {
         });
         dispatch(deleteInvoiceFromList(id));
       } catch (error) {
+        console.error('Error deleting invoice:', error);
         toast.error('Error', {
           description: 'Failed to delete invoice',
         });
@@ -314,7 +327,7 @@ export default function Invoices() {
       ),
     },
     {
-      accessorKey: 'createdAt',
+      accessorKey: 'date',
       header: ({ column }) => {
         return (
           <Button
@@ -328,7 +341,7 @@ export default function Invoices() {
       },
       cell: ({ row }) => (
         <div className="capitalize">
-          {new Date(row.getValue('createdAt')).toLocaleDateString()}
+          {new Date(row.getValue('date')).toLocaleDateString()}
         </div>
       ),
     },
@@ -555,7 +568,7 @@ export default function Invoices() {
                   customerId: '',
                   totalAmount: '',
                   currency: 'USD',
-                  date: new Date().toISOString().split('T')[0],
+                  date: new Date(),
                 });
               }}
             >
@@ -600,17 +613,34 @@ export default function Invoices() {
                   )}
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="date">Date</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, date: e.target.value })
-                    }
-                    required
-                  />
-                </div>{' '}
+                  <Label>Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={'outline'}
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.date ? (
+                          format(formData.date, 'PPP')
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={formData.date}
+                        onSelect={(date) => {
+                          if (date) {
+                            setFormData({ ...formData, date });
+                          }
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <div className="flex gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="customer">Customer *</Label>
@@ -650,9 +680,11 @@ export default function Invoices() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="USD">USD</SelectItem>
-                        <SelectItem value="EUR">EUR</SelectItem>
-                        <SelectItem value="JPY">JPY</SelectItem>
+                        {currencies.map((currency) => (
+                          <SelectItem key={currency.code} value={currency.code}>
+                            {currency.code}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -897,7 +929,7 @@ export default function Invoices() {
                       colSpan={columns.length}
                       className="h-24 text-center"
                     >
-                      <Loader2 className="mx-auto animate-spin" />
+                      <Spinner className="mx-auto" />
                     </TableCell>
                   </TableRow>
                 ) : (

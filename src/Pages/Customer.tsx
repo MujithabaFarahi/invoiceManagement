@@ -181,6 +181,7 @@ export default function Customers() {
         currency: 'USD',
       });
     } catch (error) {
+      console.error('Error saving customer:', error);
       toast.error('Error', {
         description: 'Failed to save customer',
       });
@@ -212,6 +213,7 @@ export default function Customers() {
 
         dispatch(deleteCustomerFromList(id));
       } catch (error) {
+        console.error('Error deleting customer:', error);
         toast.error('Error', {
           description: 'Failed to delete customer',
         });
@@ -244,7 +246,6 @@ export default function Customers() {
       enableSorting: false,
       enableHiding: false,
     },
-
     {
       accessorKey: 'name',
       header: ({ column }) => {

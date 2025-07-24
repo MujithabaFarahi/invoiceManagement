@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { getPaymentAllocations, getPaymentById } from '@/Config/firestore';
 import type { Payment, PaymentAllocation } from '@/Config/types';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 
 export default function PaymentDetails() {
   const navigate = useNavigate();
@@ -46,19 +47,19 @@ export default function PaymentDetails() {
   if (loading)
     return (
       <div>
-        <Button onClick={() => navigate(-1)} variant="outline" className="mb-4">
+        <Button onClick={() => navigate(-1)} variant="ghost" className="mb-4">
           <ArrowLeft /> Back
         </Button>
         <div className="flex justify-center items-center min-h-[85vh]">
-          <Loader2 className="animate-spin h-12 w-12" />
+          <Spinner size="large" />
         </div>
       </div>
     );
 
   return (
     <div>
-      <Button onClick={() => navigate(-1)} variant="outline" className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back
+      <Button onClick={() => navigate(-1)} variant="ghost" className="mb-4">
+        <ArrowLeft /> Back
       </Button>
 
       <h1 className="text-xl font-bold mb-2">Payment Details</h1>

@@ -7,7 +7,6 @@ import {
   ArrowUpDown,
   ChevronDown,
   FilterX,
-  Loader2,
   MoreHorizontal,
   Plus,
 } from 'lucide-react';
@@ -95,6 +94,7 @@ import {
   setAllocatedAmount,
   setSelectedInvoices,
 } from '@/redux/features/invoiceSlice';
+import { Spinner } from '@/components/ui/spinner';
 
 export default function Payments() {
   const navigate = useNavigate();
@@ -576,7 +576,13 @@ export default function Payments() {
                       <Select
                         value={formData.customerId}
                         onValueChange={(value) => {
-                          setFormData({ ...formData, customerId: value });
+                          setFormData({
+                            ...formData,
+                            customerId: value,
+                            currency:
+                              customers.find((c) => c.id === value)?.currency ||
+                              'USD',
+                          });
                           if (formData.customerId !== value) {
                             setSelectedInvoices([]);
                           }
@@ -606,9 +612,14 @@ export default function Payments() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="USD">USD</SelectItem>
-                          <SelectItem value="EUR">EUR</SelectItem>
-                          <SelectItem value="JPY">JPY</SelectItem>
+                          {currencies.map((currency) => (
+                            <SelectItem
+                              key={currency.code}
+                              value={currency.code}
+                            >
+                              {currency.code}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -835,6 +846,7 @@ export default function Payments() {
                     <TableRow
                       key={row.id}
                       data-state={row.getIsSelected() && 'selected'}
+                      className="cursor-pointer"
                       onClick={() => {
                         navigate(`/payments/${row.original.id}`);
                       }}
@@ -855,7 +867,7 @@ export default function Payments() {
                       colSpan={columns.length}
                       className="h-24 text-center"
                     >
-                      <Loader2 className="mx-auto animate-spin" />
+                      <Spinner className="mx-auto" />
                     </TableCell>
                   </TableRow>
                 ) : (
