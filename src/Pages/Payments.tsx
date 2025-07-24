@@ -92,7 +92,6 @@ import {
 import {
   fetchCustomerInvoices,
   resetCustomerInvoices,
-  setAllocatedAmount,
   setSelectedInvoices,
 } from '@/redux/features/invoiceSlice';
 import { Spinner } from '@/components/ui/spinner';
