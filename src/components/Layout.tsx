@@ -34,6 +34,7 @@ export default function Layout() {
       await signOut(auth);
       navigate('/login');
     } catch (error) {
+      console.error('Logout failed:', error);
       toast.error('Logout failed', {
         description: 'Please try again later.',
       });
@@ -183,7 +184,7 @@ export default function Layout() {
 
       {/* Main content */}
       <div className="md:pl-64">
-        <main className="px-4 md:p-8">
+        <main className="px-4 pb-8 md:p-8">
           <Outlet />
         </main>
       </div>

@@ -20,6 +20,7 @@ export interface paymentState {
   payments: Payment[];
   payment: Payment | null;
   paymentAllocations: PaymentAllocation[];
+  customer: Customer;
   customers: Customer[];
   currencies: Currency[];
 }
@@ -33,6 +34,7 @@ const initialState: paymentState = {
   payments: [],
   payment: null,
   paymentAllocations: [],
+  customer: {} as Customer,
   customers: [],
   currencies: [],
 };
@@ -113,6 +115,12 @@ const paymentSlice = createSlice({
         (payment) => payment.id !== action.payload
       );
     },
+    selectCustomer: (state, action: PayloadAction<string>) => {
+      const customer = state.customers.find(
+        (customer) => customer.id === action.payload
+      );
+      state.customer = customer || ({} as Customer);
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -172,5 +180,6 @@ export const {
   addPaymentToList,
   updatePaymentInList,
   deletePaymentFromList,
+  selectCustomer,
 } = paymentSlice.actions;
 export default paymentSlice.reducer;

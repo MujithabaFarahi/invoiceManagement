@@ -1,47 +1,26 @@
-'use client';
-
-import React from 'react';
-
-import { useEffect, useState } from 'react';
-import {
-  Plus,
-  ArrowUpDown,
-  MoreHorizontal,
-  ChevronDown,
-  FilterX,
-  Trash2,
-  Edit,
-  CalendarIcon,
-} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { format } from 'date-fns';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  fetchInvoices,
+  filterCustomerInvoices,
+} from '@/redux/features/invoiceSlice';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  fetchCurrencies,
+  fetchCustomers,
+  selectCustomer,
+} from '@/redux/features/paymentSlice';
+import type { AppDispatch, RootState } from '@/redux/store/store';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+  ArrowLeft,
+  ArrowUpDown,
+  ChevronDown,
+  Edit,
+  FilterX,
+  MoreHorizontal,
+  Trash2,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Select,
   SelectContent,
@@ -49,10 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { addInvoice, updateInvoice, deleteInvoice } from '@/Config/firestore';
-import { getPaginationRange, type Invoice } from '@/Config/types';
-import { toast } from 'sonner';
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -65,7 +40,33 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table';
-import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { getPaginationRange, type Invoice } from '@/Config/types';
+import { Checkbox } from '@radix-ui/react-checkbox';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -75,210 +76,96 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
-import { useDispatch, useSelector } from 'react-redux';
-import type { AppDispatch, RootState } from '@/redux/store/store';
-import { setInvoices } from '@/redux/features/invoiceSlice';
-import { fetchCurrencies, fetchCustomers } from '@/redux/features/paymentSlice';
+import { toast } from 'sonner';
+import React from 'react';
 import { Spinner } from '@/components/ui/spinner';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
-import { db } from '@/Config/firebase';
 
-export default function Invoices() {
+export default function CustomerDetail() {
+  const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
 
-  const { currencies, customers } = useSelector(
+  const { id: customerId } = useParams();
+
+  const { loading, customer, currencies, customers } = useSelector(
     (state: RootState) => state.payment
   );
 
-  const { loading, invoices } = useSelector(
-    (state: RootState) => state.invoice
-  );
+  const {
+    loading: invoiceLoading,
+    customerInvoices,
+    invoices,
+  } = useSelector((state: RootState) => state.invoice);
 
   useEffect(() => {
     if (currencies.length === 0) {
       dispatch(fetchCurrencies());
     }
+
     if (customers.length === 0) {
-      dispatch(fetchCustomers());
+      dispatch(fetchCustomers()).then(() => {
+        if (customerId) {
+          dispatch(selectCustomer(customerId));
+        }
+      });
     }
-  }, [dispatch, invoices.length, currencies.length, customers.length]);
 
-  const listenToInvoices = (dispatch: AppDispatch) => {
-    const invoicesRef = collection(db, 'invoices');
-    const q = query(invoicesRef, orderBy('createdAt', 'desc'));
-
-    const unsub = onSnapshot(q, (snapshot) => {
-      const invoices = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        date: doc.data().date.toDate(),
-        createdAt: doc.data().createdAt.toDate(),
-      })) as Invoice[];
-
-      dispatch(setInvoices(invoices));
-    });
-
-    return unsub;
-  };
+    if (invoices.length === 0) {
+      dispatch(fetchInvoices()).then(() => {
+        if (customerId) {
+          dispatch(filterCustomerInvoices(customerId));
+        }
+      });
+    }
+  }, [
+    dispatch,
+    currencies.length,
+    customers.length,
+    customerId,
+    invoices.length,
+  ]);
 
   useEffect(() => {
-    const unsubscribe = listenToInvoices(dispatch);
-    return () => unsubscribe(); // cleanup listener
-  }, [dispatch]);
+    if (!customerId) return;
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+    const fetchData = async () => {
+      dispatch(selectCustomer(customerId));
+      dispatch(filterCustomerInvoices(customerId));
+    };
+    fetchData();
+  }, [customerId, dispatch]);
 
-  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
   const statusOptions = ['paid', 'partially_paid', 'pending'];
-
-  const [formData, setFormData] = useState({
-    invoiceNo: '',
-    customerId: '',
-    totalAmount: '',
-    currency: 'USD',
-    date: new Date(),
+  const [stats, setStats] = useState({
+    USDPending: 0,
+    EURPending: 0,
+    JPYPending: 0,
   });
+  useEffect(() => {
+    const pending = {
+      USDPending: 0,
+      EURPending: 0,
+      JPYPending: 0,
+    };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (errorMessage) {
-      toast.error('Error', {
-        description: 'Please provide a unique invoice number',
+    customerInvoices
+      .filter((invoice) => invoice.status !== 'paid')
+      .forEach((invoice) => {
+        if (invoice.currency === 'USD') {
+          pending.USDPending += invoice.balance;
+        } else if (invoice.currency === 'EUR') {
+          pending.EURPending += invoice.balance;
+        } else if (invoice.currency === 'JPY') {
+          pending.JPYPending += invoice.balance;
+        }
       });
-      return;
-    }
 
-    if (!formData.invoiceNo || !formData.customerId || !formData.totalAmount) {
-      toast.error('Error', {
-        description: 'Please fill in all required fields',
-      });
-      return;
-    }
-
-    const customer = customers.find((c) => c.id === formData.customerId);
-    if (!customer) {
-      toast.error('Error', {
-        description: 'Selected customer not found',
-      });
-      return;
-    }
-
-    const totalAmount = Number.parseFloat(formData.totalAmount);
-
-    try {
-      setIsLoading(true);
-      const invoiceData = {
-        invoiceNo: formData.invoiceNo,
-        customerId: formData.customerId,
-        customerName: customer.name,
-        totalAmount,
-        amountPaid: 0,
-        currency: formData.currency,
-        balance: totalAmount,
-        status: 'pending' as const,
-        date: formData.date,
-        foreignBankPayment: 0,
-        localBankPayment: 0,
-      };
-
-      if (editingInvoice) {
-        await updateInvoice(editingInvoice.id, invoiceData);
-        // dispatch(
-        //   updateInvoiceInList({
-        //     id: editingInvoice.id,
-        //     invoiceNo: formData.invoiceNo,
-        //     customerId: formData.customerId,
-        //     currency: formData.currency,
-        //     date: formData.date,
-        //     customerName: customer.name,
-        //     totalAmount,
-        //     amountPaid: 0,
-        //     balance: totalAmount,
-        //     status: 'pending' as const,
-        //     createdAt: editingInvoice.createdAt,
-        //   })
-        // );
-        toast.success('Success', {
-          description: 'Invoice updated successfully',
-        });
-      } else {
-        await addInvoice({
-          createdAt: new Date(),
-          ...invoiceData,
-        });
-
-        toast.success('Success', {
-          description: 'Invoice created successfully',
-        });
-      }
-
-      setIsDialogOpen(false);
-      setEditingInvoice(null);
-      setFormData({
-        invoiceNo: '',
-        customerId: '',
-        totalAmount: '',
-        currency: 'USD',
-        date: new Date(),
-      });
-    } catch (error) {
-      console.error('Error saving invoice:', error);
-      toast.error('Error', {
-        description: 'Failed to save invoice',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleEdit = (invoice: Invoice) => {
-    setEditingInvoice(invoice);
-    setFormData({
-      invoiceNo: invoice.invoiceNo,
-      customerId: invoice.customerId,
-      totalAmount: invoice.totalAmount.toString(),
-      currency: invoice.currency,
-      date: invoice.date,
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this invoice?')) {
-      try {
-        await deleteInvoice(id);
-        toast.success('Success', {
-          description: 'Invoice deleted successfully',
-        });
-        // dispatch(deleteInvoiceFromList(id));
-      } catch (error) {
-        console.error('Error deleting invoice:', error);
-        toast.error('Error', {
-          description: 'Failed to delete invoice',
-        });
-      }
-    }
-  };
+    setStats((prev) => ({
+      ...prev,
+      ...pending,
+    }));
+  }, [customerInvoices]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -357,17 +244,7 @@ export default function Invoices() {
         </div>
       ),
     },
-    {
-      accessorKey: 'customerName',
-      header: 'Customer Name',
-      filterFn: (row, columnId, filterValue) => {
-        if (!filterValue?.length) return true;
-        return filterValue.includes(row.getValue(columnId));
-      },
-      cell: ({ row }) => (
-        <div className="capitalize">{row.getValue('customerName')}</div>
-      ),
-    },
+
     {
       accessorKey: 'currency',
       header: 'Currency',
@@ -486,7 +363,7 @@ export default function Invoices() {
                     });
                     return;
                   }
-                  handleEdit(invoice);
+                  //   handleEdit(invoice);
                 }}
               >
                 <Edit className="text-primary" />
@@ -505,7 +382,7 @@ export default function Invoices() {
                     });
                     return;
                   }
-                  handleDelete(invoice.id);
+                  //   handleDelete(invoice.id);
                 }}
               >
                 <Trash2 className="text-red-700" />
@@ -526,7 +403,7 @@ export default function Invoices() {
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
   const table = useReactTable({
-    data: invoices,
+    data: customerInvoices,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -549,10 +426,6 @@ export default function Invoices() {
   const paginationRange = getPaginationRange(currentPage, totalPages);
 
   useEffect(() => {
-    table.getColumn('customerName')?.setFilterValue(selectedCustomers);
-  }, [selectedCustomers, table]);
-
-  useEffect(() => {
     table.getColumn('status')?.setFilterValue(selectedStatuses);
   }, [selectedStatuses, table]);
 
@@ -561,188 +434,76 @@ export default function Invoices() {
   }, [selectedCurrencies, table]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Invoices</h1>
-          <p className="text-muted-foreground">
-            Manage customer invoices and track payments
-          </p>
-        </div>
+    <div>
+      <Button onClick={() => navigate(-1)} variant="ghost" className="mb-4">
+        <ArrowLeft /> Back
+      </Button>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button
-              onClick={() => {
-                setEditingInvoice(null);
-                setFormData({
-                  invoiceNo: '',
-                  customerId: '',
-                  totalAmount: '',
-                  currency: 'USD',
-                  date: new Date(),
-                });
-                setErrorMessage(null);
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Create Invoice
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent
-            onPointerDownOutside={(e) => e.preventDefault()}
-            // onEscapeKeyDown={(e) => e.preventDefault()}
-          >
-            <DialogHeader>
-              <DialogTitle>
-                {editingInvoice ? 'Edit Invoice' : 'Create New Invoice'}
-              </DialogTitle>
-              <DialogDescription>
-                {editingInvoice
-                  ? 'Update invoice information'
-                  : 'Enter invoice details to create a new invoice'}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit}>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="invoiceNo">Invoice Number *</Label>
-                  <Input
-                    id="invoiceNo"
-                    value={formData.invoiceNo}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setFormData({ ...formData, invoiceNo: value });
-
-                      const exists = invoices.some(
-                        (inv) => inv.invoiceNo === value.trim()
-                      );
-                      setErrorMessage(
-                        exists ? 'Invoice number already exists' : ''
-                      );
-                    }}
-                    placeholder="INV-001"
-                    required
-                  />
-                  {errorMessage && (
-                    <p className="text-sm text-red-500">{errorMessage}</p>
-                  )}
+      {customer &&
+        (loading ? (
+          <Card className="mb-6">
+            <CardContent>
+              <Spinner />
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold">
+                {customer.name}
+              </CardTitle>
+              <CardDescription>{customer.email}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Phone</p>
+                  <p className="font-medium">{customer.phone || 'N/A'}</p>
                 </div>
-                <div className="grid gap-2">
-                  <Label>Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={'outline'}
-                        className="w-full justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.date ? (
-                          format(formData.date, 'PPP')
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formData.date}
-                        captionLayout="dropdown"
-                        onSelect={(date) => {
-                          if (date) {
-                            setFormData({ ...formData, date });
-                          }
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                <div>
+                  <p className="text-sm text-muted-foreground">Address</p>
+                  <p className="font-medium">{customer.address || 'N/A'}</p>
                 </div>
-                <div className="flex gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="customer">Customer *</Label>
-                    <Select
-                      value={formData.customerId}
-                      onValueChange={(value) =>
-                        setFormData({
-                          ...formData,
-                          customerId: value,
-                          currency:
-                            customers.find((c) => c.id === value)?.currency ||
-                            'USD',
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a customer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="currency">Currency</Label>
-                    <Select
-                      value={formData.currency}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, currency: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {currencies.map((currency) => (
-                          <SelectItem key={currency.code} value={currency.code}>
-                            {currency.code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Preferred Currency
+                  </p>
+                  <p className="font-medium">{customer.currency}</p>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="totalAmount">Total Amount *</Label>
-                  <Input
-                    id="totalAmount"
-                    type="number"
-                    step="0.01"
-                    value={formData.totalAmount}
-                    onChange={(e) =>
-                      setFormData({ ...formData, totalAmount: e.target.value })
-                    }
-                    placeholder="0.00"
-                    required
-                  />
+                <div>
+                  <p className="text-sm text-muted-foreground">Created At</p>
+                  <p className="font-medium">
+                    {new Date(customer.createdAt).toLocaleDateString()}
+                  </p>
                 </div>
               </div>
-              <DialogFooter className="mt-4">
-                <Button
-                  className="min-w-36"
-                  variant={'outline'}
-                  type="button"
-                  onClick={() => setIsDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="min-w-36"
-                  type="submit"
-                  isLoading={isLoading}
-                >
-                  {editingInvoice ? 'Update Invoice' : 'Create Invoice'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+            </CardContent>
+
+            <CardFooter>
+              <div className="">
+                <p className="text-sm text-muted-foreground">Pending Amounts</p>
+                <div className=" font-bold">
+                  {new Intl.NumberFormat('ja-JP', {
+                    style: 'currency',
+                    currency: 'JPY',
+                  }).format(stats.JPYPending)}{' '}
+                  +{' '}
+                  {new Intl.NumberFormat('ja-JP', {
+                    style: 'currency',
+                    currency: 'USD',
+                  }).format(stats.USDPending)}
+                  +{' '}
+                  {new Intl.NumberFormat('ja-JP', {
+                    style: 'currency',
+                    currency: 'EUR',
+                  }).format(stats.EURPending)}
+                </div>
+              </div>
+            </CardFooter>
+          </Card>
+        ))}
+
+      <h2 className="text-xl font-semibold mb-2">Invoices</h2>
 
       <Card>
         <CardHeader>
@@ -773,35 +534,6 @@ export default function Invoices() {
 
           <div className="flex flex-col md:flex-row items-end py-4 gap-4">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full md:w-auto">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    Customers <ChevronDown />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="max-h-64 overflow-auto"
-                >
-                  {customers.map((customer) => (
-                    <DropdownMenuCheckboxItem
-                      key={customer.id}
-                      checked={selectedCustomers.includes(customer.name)}
-                      onSelect={(e) => e.preventDefault()}
-                      onCheckedChange={(checked) => {
-                        setSelectedCustomers((prev) =>
-                          checked
-                            ? [...prev, customer.name]
-                            : prev.filter((name) => name !== customer.name)
-                        );
-                      }}
-                    >
-                      {customer.name}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline">
@@ -874,7 +606,6 @@ export default function Invoices() {
 
               <Button
                 onClick={() => {
-                  setSelectedCustomers([]);
                   setSelectedStatuses([]);
                   setSelectedCurrencies([]);
                   table.resetColumnFilters();
@@ -949,13 +680,13 @@ export default function Invoices() {
                       ))}
                     </TableRow>
                   ))
-                ) : loading ? (
+                ) : invoiceLoading ? (
                   <TableRow>
                     <TableCell
                       colSpan={columns.length}
                       className="h-24 text-center"
                     >
-                      <Spinner className="mx-auto" />
+                      <Spinner />
                     </TableCell>
                   </TableRow>
                 ) : (

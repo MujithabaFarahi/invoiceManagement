@@ -8,6 +8,7 @@ import Payments from './Pages/Payments';
 import './App.css';
 import { ProtectedRoute } from './Config/ProtectedRoutes';
 import PaymentDetails from './Pages/PaymentDetails';
+import CustomerDetail from './Pages/CustomerDetail';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/customers" element={<Customers />} />
+            <Route path="/customers/:id" element={<CustomerDetail />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/payments/:id" element={<PaymentDetails />} />

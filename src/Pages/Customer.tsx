@@ -9,7 +9,6 @@ import {
   Trash2,
   ArrowUpDown,
   MoreHorizontal,
-  Loader2,
   ChevronDown,
   FilterX,
 } from 'lucide-react';
@@ -96,9 +95,12 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { fetchInvoices } from '@/redux/features/invoiceSlice';
+import { useNavigate } from 'react-router-dom';
+import { Spinner } from '@/components/ui/spinner';
 
 export default function Customers() {
   const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -684,6 +686,8 @@ export default function Customers() {
                 {table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
                     <TableRow
+                      onClick={() => navigate(`/customers/${row.original.id}`)}
+                      className="cursor-pointer"
                       key={row.id}
                       data-state={row.getIsSelected() && 'selected'}
                     >
@@ -703,7 +707,7 @@ export default function Customers() {
                       colSpan={columns.length}
                       className="h-24 text-center"
                     >
-                      <Loader2 className="mx-auto animate-spin" />
+                      <Spinner />
                     </TableCell>
                   </TableRow>
                 ) : (

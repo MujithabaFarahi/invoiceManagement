@@ -17,6 +17,7 @@ export interface invoiceState {
   error: boolean;
   success: boolean;
   paymentAllocations: PaymentAllocation[];
+  invoice: Invoice;
   invoices: Invoice[];
   customerInvoices: Invoice[];
   selectedInvoices: SelectedInvoice[];
@@ -29,6 +30,7 @@ const initialState: invoiceState = {
   error: false,
   success: false,
   paymentAllocations: [],
+  invoice: {} as Invoice,
   invoices: [],
   customerInvoices: [],
   selectedInvoices: [],
@@ -76,6 +78,19 @@ const invoiceSlice = createSlice({
     setSelectedInvoices: (state, action: PayloadAction<SelectedInvoice[]>) => {
       state.selectedInvoices = action.payload;
     },
+    filterCustomerInvoices: (state, action: PayloadAction<string>) => {
+      const filteredInvoices = state.invoices.filter(
+        (invoice) => invoice.customerId === action.payload
+      );
+      state.customerInvoices = filteredInvoices;
+    },
+    selectInvoice: (state, action: PayloadAction<string>) => {
+      const invoice = state.invoices.find(
+        (invoice) => invoice.id === action.payload
+      );
+      state.invoice = invoice || ({} as Invoice);
+    },
+
     resetCustomerInvoices: (state) => {
       state.customerInvoices = [];
       state.selectedInvoices = [];
@@ -154,10 +169,12 @@ export const {
   setIsLoading,
   setInvoices,
   resetCustomerInvoices,
+  filterCustomerInvoices,
   setSelectedInvoices,
   setAllocatedAmount,
   addInvoiceToList,
   updateInvoiceInList,
   deleteInvoiceFromList,
+  selectInvoice,
 } = invoiceSlice.actions;
 export default invoiceSlice.reducer;

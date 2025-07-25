@@ -38,6 +38,8 @@ export interface Currency {
   name: string;
   amountDue: number;
   amountPaid: number;
+  foreignBankPayment: number;
+  localBankPayment: number;
 }
 
 export interface Payment {

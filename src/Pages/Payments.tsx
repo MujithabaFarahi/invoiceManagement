@@ -301,7 +301,6 @@ export default function Payments() {
         if (!invoiceSnap.exists()) continue;
 
         const invoice = invoiceSnap.data() as Invoice;
-        console.log(invoice);
         const newAmountPaid = invoice.amountPaid + alloc.allocatedAmount;
         const newBalance = invoice.totalAmount - newAmountPaid;
         const newStatus = newBalance === 0 ? 'paid' : 'partially_paid';
@@ -342,10 +341,14 @@ export default function Payments() {
         const currencyData = currencyDoc.data();
         const currentAmountDue = currencyData.amountDue || 0;
         const currentAmountPaid = currencyData.amountPaid || 0;
+        const currentLocalBankPayment = currencyData.localBankPayment || 0;
+        const currentForeignBankPayment = currencyData.foreignBankPayment || 0;
 
         batch.update(currencyDoc.ref, {
           amountDue: Math.max(0, currentAmountDue - totalAllocated),
           amountPaid: currentAmountPaid + totalAllocated,
+          localBankPayment: currentLocalBankPayment + localBankPayment,
+          foreignBankPayment: currentForeignBankPayment + foreignBankPayment,
         });
       }
 

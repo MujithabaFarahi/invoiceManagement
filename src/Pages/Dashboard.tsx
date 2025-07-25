@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Users, FileText, CreditCard, DollarSign, Loader2 } from 'lucide-react';
+import { Users, FileText, CreditCard, DollarSign } from 'lucide-react';
 import {
   getCustomerCount,
   getInvoiceCount,
@@ -16,29 +16,28 @@ import {
 } from '@/Config/firestore';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '@/redux/store/store';
-import { fetchPayments } from '@/redux/features/paymentSlice';
-import { fetchInvoices } from '@/redux/features/invoiceSlice';
+import { fetchCurrencies, fetchPayments } from '@/redux/features/paymentSlice';
+import { Spinner } from '@/components/ui/spinner';
+import { useNavigate } from 'react-router-dom';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
 
-  const { payments } = useSelector((state: RootState) => state.payment);
-  const { invoices } = useSelector((state: RootState) => state.invoice);
+  const { payments, currencies, loading } = useSelector(
+    (state: RootState) => state.payment
+  );
 
   const [stats, setStats] = useState({
     totalCustomers: 0,
     totalInvoices: 0,
     totalPayments: 0,
-    USDPending: 0,
-    EURPending: 0,
-    JPYPending: 0,
   });
 
   // Initial fetch
   useEffect(() => {
-    if (invoices.length === 0) {
-      dispatch(fetchInvoices());
-    }
+    dispatch(fetchCurrencies());
+
     if (payments.length === 0) {
       dispatch(fetchPayments());
     }
@@ -64,44 +63,64 @@ export default function Dashboard() {
     };
 
     fetchStats();
-  }, [dispatch, invoices.length, payments.length]);
+  }, [dispatch, payments.length]);
 
-  // Example exchange rates (update as needed)
-  const exchangeRates = {
-    USD_TO_JPY: 155.25,
-    EUR_TO_JPY: 169.5,
+  const [exchangeRates, setExchangeRates] = useState<Record<
+    string,
+    number
+  > | null>(null);
+
+  const fetchExchangeRates = async () => {
+    try {
+      const res = await fetch(
+        'https://www.shizuokabank.co.jp/interest/cmn/js/rate.php'
+      );
+      const data = await res.json();
+
+      const rates: Record<string, number> = {
+        USD: parseFloat(data.save_us_ttb),
+        EUR: parseFloat(data.save_euro_ttb),
+        // Add more if needed
+      };
+
+      setExchangeRates(rates);
+    } catch (err) {
+      console.error('Failed to fetch exchange rates', err);
+    }
   };
 
-  const totalPendingInJPY =
-    stats.JPYPending +
-    stats.USDPending * exchangeRates.USD_TO_JPY +
-    stats.EURPending * exchangeRates.EUR_TO_JPY;
+  const [totalPendingInJPY, setTotalPendingInJPY] = useState<number | null>(
+    null
+  );
+  const [totalReceivedInJPY, setTotalReceivedInJPY] = useState<number | null>(
+    null
+  );
 
-  // Calculate pending by currency after invoices are fetched
   useEffect(() => {
-    const pending = {
-      USDPending: 0,
-      EURPending: 0,
-      JPYPending: 0,
-    };
+    fetchExchangeRates();
+  }, []);
 
-    invoices
-      .filter((invoice) => invoice.status !== 'paid')
-      .forEach((invoice) => {
-        if (invoice.currency === 'USD') {
-          pending.USDPending += invoice.balance;
-        } else if (invoice.currency === 'EUR') {
-          pending.EURPending += invoice.balance;
-        } else if (invoice.currency === 'JPY') {
-          pending.JPYPending += invoice.balance;
-        }
-      });
+  useEffect(() => {
+    if (!exchangeRates || currencies.length === 0) return;
 
-    setStats((prev) => ({
-      ...prev,
-      ...pending,
-    }));
-  }, [invoices]);
+    let pending = 0;
+    let received = 0;
+
+    currencies.forEach((currency) => {
+      if (currency.code === 'JPY') {
+        pending += currency.amountDue || 0;
+        received += currency.amountPaid || 0;
+      } else if (exchangeRates[currency.code]) {
+        pending += (currency.amountDue || 0) * exchangeRates[currency.code];
+        received += (currency.amountPaid || 0) * exchangeRates[currency.code];
+      } else {
+        console.warn(`No exchange rate found for ${currency.code}`);
+      }
+    });
+
+    setTotalPendingInJPY(pending);
+    setTotalReceivedInJPY(received);
+  }, [exchangeRates, currencies]);
 
   return (
     <div className="space-y-6">
@@ -113,7 +132,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card onClick={() => navigate('/customers')} className="cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Total Customers
@@ -125,7 +144,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card onClick={() => navigate('/invoices')} className="cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Total Invoices
@@ -137,7 +156,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card onClick={() => navigate('/payments')} className="cursor-pointer">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Total Payments
@@ -162,7 +181,7 @@ export default function Dashboard() {
                   currency: 'JPY',
                 }).format(totalPendingInJPY)
               ) : (
-                <Loader2 className="animate-spin h-6 w-6" />
+                <Spinner size="small" className="w-12" />
               )}
             </div>
           </CardContent>
@@ -176,26 +195,71 @@ export default function Dashboard() {
             <CardDescription>Amount pending from customers</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col space-y-2">
-              <p>
-                {new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: 'JPY',
-                }).format(stats.JPYPending)}
-              </p>
-              <p>
-                {new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: 'USD',
-                }).format(stats.USDPending)}
-              </p>
-              <p>
-                {new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: 'EUR',
-                }).format(stats.EURPending)}
-              </p>
-            </div>
+            {loading ? (
+              <Spinner size="small" className="w-12" />
+            ) : (
+              <div className="  space-x-2">
+                <div>
+                  <p className="text-lg text-muted-foreground">
+                    Total :{' '}
+                    <span className="text-primary font-bold">
+                      {totalPendingInJPY !== null &&
+                        new Intl.NumberFormat('ja-JP', {
+                          style: 'currency',
+                          currency: 'JPY',
+                        }).format(totalPendingInJPY)}
+                    </span>
+                  </p>
+                </div>
+                <div className="flex flex-wrap space-x-6">
+                  {currencies.map((currency) => (
+                    <p key={currency.code}>
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: currency.code,
+                      }).format(currency.amountDue || 0)}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Revenue</CardTitle>
+            <CardDescription>Amount received from customers</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Spinner size="small" className="w-12" />
+            ) : (
+              <div className="  space-x-2">
+                <div>
+                  <p className="text-lg text-muted-foreground">
+                    Total :{' '}
+                    <span className="text-primary font-bold">
+                      {totalReceivedInJPY !== null &&
+                        new Intl.NumberFormat('ja-JP', {
+                          style: 'currency',
+                          currency: 'JPY',
+                        }).format(totalReceivedInJPY)}
+                    </span>
+                  </p>
+                </div>
+                <div className="flex flex-wrap space-x-6">
+                  {currencies.map((currency) => (
+                    <p key={currency.code}>
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: currency.code,
+                      }).format(currency.amountPaid || 0)}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

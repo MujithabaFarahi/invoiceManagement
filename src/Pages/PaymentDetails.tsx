@@ -36,19 +36,11 @@ export default function PaymentDetails() {
     fetchData();
   }, [paymentId]);
 
-  const handleChange = (id: string, value: number) => {
-    setAllocations((prev) =>
-      prev.map((alloc) =>
-        alloc.id === id ? { ...alloc, allocatedAmount: value } : alloc
-      )
-    );
-  };
-
   if (loading)
     return (
       <div>
         <Button onClick={() => navigate(-1)} variant="ghost" className="mb-4">
-          <ArrowLeft /> Back
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
         <div className="flex justify-center items-center min-h-[85vh]">
           <Spinner size="large" />
@@ -58,61 +50,101 @@ export default function PaymentDetails() {
 
   return (
     <div>
-      <Button onClick={() => navigate(-1)} variant="ghost" className="mb-4">
-        <ArrowLeft /> Back
+      <Button onClick={() => navigate(-1)} variant="ghost" className="mb-6">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back
       </Button>
 
-      <h1 className="text-xl font-bold mb-2">Payment Details</h1>
+      <h1 className="text-2xl font-bold mb-4">Payment Details</h1>
 
-      {/* Display payment metadata */}
+      {/* Payment Info */}
       {payment && (
-        <div className="border p-4 rounded-lg mb-6 bg-muted">
-          <div className="mb-1">
-            <span className="font-semibold">Customer:</span>{' '}
-            {payment.customerName}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted p-4 rounded-lg border mb-6">
+          <div>
+            <p className="text-sm text-muted-foreground">Customer</p>
+            <p className="font-medium">{payment.customerName}</p>
           </div>
-          <div className="mb-1">
-            <span className="font-semibold">Amount:</span> {payment.amount}{' '}
-            {payment.currency}
+          <div>
+            <p className="text-sm text-muted-foreground">Date</p>
+            <p className="font-medium">{payment.date.toLocaleDateString()}</p>
           </div>
-          <div className="mb-1">
-            <span className="font-semibold">Date:</span>{' '}
-            {new Date(payment.date).toLocaleDateString()}
+          <div>
+            <p className="text-sm text-muted-foreground">Currency</p>
+            <p className="font-medium">{payment.currency}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Total Amount</p>
+            <p className="font-medium">
+              {payment.amount.toLocaleString()} {payment.currency}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Local Bank Payment</p>
+            <p className="font-medium">
+              {payment.localBankPayment.toLocaleString()} JPY
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">
+              Foreign Bank Payment
+            </p>
+            <p className="font-medium ">
+              {payment.foreignBankPayment.toLocaleString()} {payment.currency}
+            </p>
           </div>
         </div>
       )}
 
-      {/* Allocations section */}
-      {allocations.length === 0 ? (
-        <p className="text-muted-foreground">No allocations found.</p>
-      ) : (
-        allocations.map((allocation) => (
-          <div key={allocation.id} className="mb-4">
-            <Label className="block text-sm font-medium">
-              Invoice No: {allocation.invoiceNo ?? 'N/A'}
-            </Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={allocation.allocatedAmount}
-              onChange={(e) =>
-                handleChange(allocation.id, parseFloat(e.target.value))
-              }
-              className="mt-1"
-            />
+      {/* Allocations */}
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold mb-2">Allocations</h2>
+        {allocations.length === 0 ? (
+          <p className="text-muted-foreground">No allocations found.</p>
+        ) : (
+          <div className="space-y-4">
+            {allocations.map((allocation) => (
+              <div
+                key={allocation.id}
+                className="border p-4 rounded-md shadow-sm"
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">
+                    Invoice No: {allocation.invoiceNo ?? 'N/A'}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Invoice ID: {allocation.invoiceId}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label
+                      htmlFor={`alloc-${allocation.id}`}
+                      className="text-sm"
+                    >
+                      Allocated Amount
+                    </Label>
+                    <Input
+                      id={`alloc-${allocation.id}`}
+                      type="number"
+                      step="0.01"
+                      value={allocation.allocatedAmount}
+                      readOnly
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm">Currency</Label>
+                    <Input
+                      value={payment?.currency}
+                      readOnly
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        ))
-      )}
-
-      <Button
-        onClick={() => {
-          toast.success('Saved (not implemented)');
-          // Save logic placeholder
-        }}
-        className="mt-4"
-      >
-        Save Allocations
-      </Button>
+        )}
+      </div>
     </div>
   );
 }

@@ -102,6 +102,23 @@ export const getInvoices = async (): Promise<Invoice[]> => {
   });
 };
 
+export const getInvoiceById = async (invoiceId: string): Promise<Invoice> => {
+  const invoiceRef = doc(db, 'invoices', invoiceId);
+  const invoiceSnap = await getDoc(invoiceRef);
+
+  if (!invoiceSnap.exists()) {
+    throw new Error('Invoice not found');
+  }
+
+  const data = invoiceSnap.data();
+  return {
+    id: invoiceSnap.id,
+    ...data,
+    date: data.date.toDate(),
+    createdAt: data.createdAt.toDate(),
+  } as Invoice;
+};
+
 export const getCustomerInvoices = async (
   customerId: string,
   currency: string
