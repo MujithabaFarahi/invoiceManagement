@@ -144,8 +144,8 @@ export default function Payments() {
     paymentNo: '',
     customerId: '',
     amount: '',
-    localBankPayment: '',
-    foreignBankPayment: '',
+    localBankCharge: '',
+    foreignBankCharge: '',
     currency: 'USD',
     date: new Date(),
   });
@@ -180,8 +180,8 @@ export default function Payments() {
           invoiceId: inv.id,
           allocatedAmount: 0,
           balance: inv.balance,
-          foreignBankPayment: 0,
-          localBankPayment: 0,
+          foreignBankCharge: 0,
+          localBankCharge: 0,
         };
       }
 
@@ -192,8 +192,8 @@ export default function Payments() {
         invoiceId: inv.id,
         allocatedAmount: alloc,
         balance: inv.balance,
-        foreignBankPayment: 0,
-        localBankPayment: 0,
+        foreignBankCharge: 0,
+        localBankCharge: 0,
       };
     });
 
@@ -229,15 +229,15 @@ export default function Payments() {
       return;
     }
 
-    const localBankPayment = parseFloat(formData.localBankPayment) || 0;
-    const foreignBankPayment = parseFloat(formData.foreignBankPayment) || 0;
+    const localBankCharge = parseFloat(formData.localBankCharge) || 0;
+    const foreignBankCharge = parseFloat(formData.foreignBankCharge) || 0;
 
     const nonZeroAllocations = selectedInvoices
       .filter((i) => i.allocatedAmount > 0)
       .map((invoice, index) => ({
         ...invoice,
-        foreignBankPayment: index === 0 ? foreignBankPayment : 0,
-        localBankPayment: index === 0 ? localBankPayment : 0,
+        foreignBankCharge: index === 0 ? foreignBankCharge : 0,
+        localBankCharge: index === 0 ? localBankCharge : 0,
       }));
 
     const amount = Number.parseFloat(formData.amount);
@@ -279,15 +279,15 @@ export default function Payments() {
       // 1. Add Payment
       const paymentData = {
         paymentNo: formData.paymentNo,
-        date: formData.date,
+        date: formData.date.toLocaleDateString(),
         customerId: formData.customerId,
         customerName: customer.name,
         currency: formData.currency,
         amount,
         allocatedAmount: totalAllocated,
         remainingAmount: amount - totalAllocated,
-        foreignBankPayment,
-        localBankPayment,
+        foreignBankCharge,
+        localBankCharge,
         createdAt: new Date(),
       };
 
@@ -304,17 +304,17 @@ export default function Payments() {
         const newAmountPaid = invoice.amountPaid + alloc.allocatedAmount;
         const newBalance = invoice.totalAmount - newAmountPaid;
         const newStatus = newBalance === 0 ? 'paid' : 'partially_paid';
-        const newForeignBankPayment =
-          invoice.foreignBankPayment + alloc.foreignBankPayment;
-        const newLocalBankPayment =
-          invoice.localBankPayment + alloc.localBankPayment;
+        const newforeignBankCharge =
+          invoice.foreignBankCharge + alloc.foreignBankCharge;
+        const newlocalBankCharge =
+          invoice.localBankCharge + alloc.localBankCharge;
 
         batch.update(invoiceRef, {
           amountPaid: newAmountPaid,
           balance: newBalance,
           status: newStatus,
-          foreignBankPayment: newForeignBankPayment,
-          localBankPayment: newLocalBankPayment,
+          foreignBankCharge: newforeignBankCharge,
+          localBankCharge: newlocalBankCharge,
         });
 
         // Set bank payment values only for the first allocation
@@ -325,8 +325,8 @@ export default function Payments() {
           invoiceNo: invoice.invoiceNo,
           allocatedAmount: alloc.allocatedAmount,
           createdAt: new Date(),
-          localBankPayment: alloc.localBankPayment,
-          foreignBankPayment: alloc.foreignBankPayment,
+          localBankCharge: alloc.localBankCharge,
+          foreignBankCharge: alloc.foreignBankCharge,
         });
       }
 
@@ -341,14 +341,14 @@ export default function Payments() {
         const currencyData = currencyDoc.data();
         const currentAmountDue = currencyData.amountDue || 0;
         const currentAmountPaid = currencyData.amountPaid || 0;
-        const currentLocalBankPayment = currencyData.localBankPayment || 0;
-        const currentForeignBankPayment = currencyData.foreignBankPayment || 0;
+        const currentlocalBankCharge = currencyData.localBankCharge || 0;
+        const currentforeignBankCharge = currencyData.foreignBankCharge || 0;
 
         batch.update(currencyDoc.ref, {
           amountDue: Math.max(0, currentAmountDue - totalAllocated),
           amountPaid: currentAmountPaid + totalAllocated,
-          localBankPayment: currentLocalBankPayment + localBankPayment,
-          foreignBankPayment: currentForeignBankPayment + foreignBankPayment,
+          localBankCharge: currentlocalBankCharge + localBankCharge,
+          foreignBankCharge: currentforeignBankCharge + foreignBankCharge,
         });
       }
 
@@ -376,8 +376,8 @@ export default function Payments() {
         paymentNo: '',
         customerId: '',
         amount: '',
-        localBankPayment: '',
-        foreignBankPayment: '',
+        localBankCharge: '',
+        foreignBankCharge: '',
         currency: 'USD',
         date: new Date(),
       });
@@ -434,7 +434,7 @@ export default function Payments() {
       ),
     },
     {
-      accessorKey: 'createdAt',
+      accessorKey: 'date',
       header: ({ column }) => {
         return (
           <Button
@@ -447,9 +447,7 @@ export default function Payments() {
         );
       },
       cell: ({ row }) => (
-        <div className="capitalize">
-          {new Date(row.getValue('createdAt')).toISOString().split('T')[0]}
-        </div>
+        <div className="capitalize">{row.getValue('date')}</div>
       ),
     },
     {
@@ -583,8 +581,8 @@ export default function Payments() {
                   paymentNo: generatePaymentNo(),
                   customerId: '',
                   amount: '',
-                  localBankPayment: '',
-                  foreignBankPayment: '',
+                  localBankCharge: '',
+                  foreignBankCharge: '',
                   currency: 'USD',
                   date: new Date(),
                 });
@@ -756,34 +754,34 @@ export default function Payments() {
                 </div>
                 <div className="grid md:grid-cols-2 gap-4 w-full">
                   <div className="grid gap-2 w-full">
-                    <Label htmlFor="foreignBankPayment">
+                    <Label htmlFor="foreignBankCharge">
                       Foreign Bank Payment
                     </Label>
                     <Input
-                      id="foreignBankPayment"
+                      id="foreignBankCharge"
                       type="number"
                       step="0.01"
-                      value={formData.foreignBankPayment}
+                      value={formData.foreignBankCharge}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          foreignBankPayment: e.target.value,
+                          foreignBankCharge: e.target.value,
                         })
                       }
                       placeholder="0.00"
                     />
                   </div>
                   <div className="grid gap-2 w-full">
-                    <Label htmlFor="localBankPayment">Local Bank Payment</Label>
+                    <Label htmlFor="localBankCharge">Local Bank Payment</Label>
                     <Input
-                      id="localBankPayment"
+                      id="localBankCharge"
                       type="number"
                       step="0.01"
-                      value={formData.localBankPayment}
+                      value={formData.localBankCharge}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          localBankPayment: e.target.value,
+                          localBankCharge: e.target.value,
                         })
                       }
                       placeholder="0.00"

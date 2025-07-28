@@ -96,7 +96,6 @@ export const getInvoices = async (): Promise<Invoice[]> => {
     return {
       id: doc.id,
       ...data,
-      date: data.date.toDate(),
       createdAt: data.createdAt.toDate(),
     } as Invoice;
   });
@@ -283,7 +282,6 @@ export const getPayments = async (): Promise<Payment[]> => {
     return {
       id: doc.id,
       ...data,
-      date: data.date.toDate(),
       createdAt: data.createdAt.toDate(),
     } as Payment;
   });
@@ -301,7 +299,6 @@ export const getPaymentById = async (paymentId: string): Promise<Payment> => {
   return {
     id: paymentSnap.id,
     ...data,
-    date: data.date.toDate(),
     createdAt: data.createdAt.toDate(),
   } as Payment;
 };

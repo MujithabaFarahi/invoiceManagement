@@ -16,11 +16,12 @@ export interface Invoice {
   totalAmount: number;
   amountPaid: number;
   currency: string;
+  invoiceLink?: string;
   balance: number;
   status: 'pending' | 'partially_paid' | 'paid';
-  date: Date;
-  foreignBankPayment: number;
-  localBankPayment: number;
+  date: string;
+  foreignBankCharge: number;
+  localBankCharge: number;
   createdAt: Date;
 }
 
@@ -28,8 +29,8 @@ export interface SelectedInvoice {
   invoiceId: string;
   allocatedAmount: number;
   balance: number;
-  foreignBankPayment: number;
-  localBankPayment: number;
+  foreignBankCharge: number;
+  localBankCharge: number;
 }
 
 export interface Currency {
@@ -38,22 +39,22 @@ export interface Currency {
   name: string;
   amountDue: number;
   amountPaid: number;
-  foreignBankPayment: number;
-  localBankPayment: number;
+  foreignBankCharge: number;
+  localBankCharge: number;
 }
 
 export interface Payment {
   id: string;
   paymentNo: string;
-  date: Date;
+  date: string;
   customerId: string;
   customerName: string;
   currency: string;
   amount: number;
   allocatedAmount: number;
   remainingAmount: number;
-  foreignBankPayment: number;
-  localBankPayment: number;
+  foreignBankCharge: number;
+  localBankCharge: number;
   createdAt: Date;
 }
 
@@ -63,8 +64,8 @@ export interface PaymentAllocation {
   invoiceId: string;
   invoiceNo: string;
   allocatedAmount: number;
-  foreignBankPayment: number;
-  localBankPayment: number;
+  foreignBankCharge: number;
+  localBankCharge: number;
   createdAt: Date;
 }
 

@@ -240,7 +240,7 @@ export default function CustomerDetail() {
       },
       cell: ({ row }) => (
         <div className="capitalize">
-          {new Date(row.getValue('date')).toISOString().split('T')[0]}
+          {new Date(row.getValue('date')).toLocaleDateString()}
         </div>
       ),
     },

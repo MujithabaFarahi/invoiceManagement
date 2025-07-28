@@ -125,7 +125,7 @@ export default function Invoices() {
       const invoices = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-        date: doc.data().date.toDate(),
+        // date: doc.data().date.toDate(),
         createdAt: doc.data().createdAt.toDate(),
       })) as Invoice[];
 
@@ -155,6 +155,7 @@ export default function Invoices() {
     customerId: '',
     totalAmount: '',
     currency: 'USD',
+    invoiceLink: '',
     date: new Date(),
   });
 
@@ -191,14 +192,15 @@ export default function Invoices() {
         invoiceNo: formData.invoiceNo,
         customerId: formData.customerId,
         customerName: customer.name,
+        invoiceLink: formData.invoiceLink,
         totalAmount,
         amountPaid: 0,
         currency: formData.currency,
         balance: totalAmount,
         status: 'pending' as const,
-        date: formData.date,
-        foreignBankPayment: 0,
-        localBankPayment: 0,
+        date: formData.date.toLocaleDateString('ja-JP'),
+        foreignBankCharge: 0,
+        localBankCharge: 0,
       };
 
       if (editingInvoice) {
@@ -240,6 +242,7 @@ export default function Invoices() {
         totalAmount: '',
         currency: 'USD',
         date: new Date(),
+        invoiceLink: '',
       });
     } catch (error) {
       console.error('Error saving invoice:', error);
@@ -258,7 +261,8 @@ export default function Invoices() {
       customerId: invoice.customerId,
       totalAmount: invoice.totalAmount.toString(),
       currency: invoice.currency,
-      date: invoice.date,
+      date: new Date(invoice.date),
+      invoiceLink: invoice.invoiceLink ?? '',
     });
     setIsDialogOpen(true);
   };
@@ -352,9 +356,7 @@ export default function Invoices() {
         );
       },
       cell: ({ row }) => (
-        <div className="capitalize">
-          {new Date(row.getValue('date')).toISOString().split('T')[0]}
-        </div>
+        <div className="capitalize">{row.getValue('date')}</div>
       ),
     },
     {
@@ -579,6 +581,7 @@ export default function Invoices() {
                   invoiceNo: '',
                   customerId: '',
                   totalAmount: '',
+                  invoiceLink: '',
                   currency: 'USD',
                   date: new Date(),
                 });
@@ -719,6 +722,16 @@ export default function Invoices() {
                     }
                     placeholder="0.00"
                     required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="invoiceLink">Invoice Link</Label>
+                  <Input
+                    id="invoiceLink"
+                    value={formData.invoiceLink}
+                    onChange={(e) =>
+                      setFormData({ ...formData, invoiceLink: e.target.value })
+                    }
                   />
                 </div>
               </div>
