@@ -144,6 +144,7 @@ export default function Payments() {
     paymentNo: '',
     customerId: '',
     amount: '',
+    JPYamount: '',
     localBankCharge: '',
     foreignBankCharge: '',
     currency: 'USD',
@@ -241,6 +242,7 @@ export default function Payments() {
       }));
 
     const amount = Number.parseFloat(formData.amount);
+    const amountRecieved = Number.parseFloat(formData.JPYamount);
     const totalAllocated = nonZeroAllocations.reduce(
       (sum, i) => sum + i.allocatedAmount,
       0
@@ -286,6 +288,7 @@ export default function Payments() {
         amount,
         allocatedAmount: totalAllocated,
         remainingAmount: amount - totalAllocated,
+        amountRecieved,
         foreignBankCharge,
         localBankCharge,
         createdAt: new Date(),
@@ -327,6 +330,16 @@ export default function Payments() {
           createdAt: new Date(),
           localBankCharge: alloc.localBankCharge,
           foreignBankCharge: alloc.foreignBankCharge,
+        });
+      }
+
+      // 4. Update Customer Due
+      const customerRef = doc(db, 'customers', formData.customerId);
+      const customerSnap = await getDoc(customerRef);
+      if (customerSnap.exists()) {
+        const currentAmount = customerSnap.data().amountRecieved || 0;
+        batch.update(customerRef, {
+          amountRecieved: currentAmount + amountRecieved,
         });
       }
 
@@ -376,6 +389,7 @@ export default function Payments() {
         paymentNo: '',
         customerId: '',
         amount: '',
+        JPYamount: '',
         localBankCharge: '',
         foreignBankCharge: '',
         currency: 'USD',
@@ -581,6 +595,7 @@ export default function Payments() {
                   paymentNo: generatePaymentNo(),
                   customerId: '',
                   amount: '',
+                  JPYamount: '',
                   localBankCharge: '',
                   foreignBankCharge: '',
                   currency: 'USD',
@@ -751,6 +766,22 @@ export default function Payments() {
                   {errorMessage && (
                     <p className="text-red-500">{errorMessage}</p>
                   )}
+                </div>
+                <div className="grid gap-2 w-full">
+                  <Label htmlFor="JPYamount">Recieved In JPY*</Label>
+                  <Input
+                    id="JPYamount"
+                    type="number"
+                    step="0.01"
+                    value={formData.JPYamount}
+                    min="0"
+                    max={getTotalDue()}
+                    onChange={(e) =>
+                      setFormData({ ...formData, JPYamount: e.target.value })
+                    }
+                    placeholder="0.00"
+                    required
+                  />
                 </div>
                 <div className="grid md:grid-cols-2 gap-4 w-full">
                   <div className="grid gap-2 w-full">

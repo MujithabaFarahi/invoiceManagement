@@ -284,6 +284,22 @@ export default function Invoices() {
     }
   };
 
+  const handleLoadEdit = async () => {
+    try {
+      for (const invoice of invoices) {
+        const invoiceData = invoice;
+        console.log(invoiceData.date);
+        const dat = new Date(invoiceData.date);
+        const date = dat.toLocaleDateString('ja-JP');
+        console.log(date);
+        console.log('..................');
+        await updateInvoice(invoice.id, { ...invoiceData, date });
+      }
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+    }
+  };
+
   const invoicesToAdd = [
     {
       invoiceNo: '0006 PL-SM-INV',
@@ -1063,6 +1079,16 @@ export default function Invoices() {
         >
           <Plus className="mr-2 h-4 w-4" />
           Bulk Add
+        </Button>
+
+        <Button
+          variant="outline"
+          className="min-w-36"
+          onClick={() => handleLoadEdit()}
+          isLoading={isLoading}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Bulk Edit
         </Button>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
