@@ -96,6 +96,7 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '@/Config/firebase';
+import { se } from 'date-fns/locale';
 
 export default function Invoices() {
   const dispatch = useDispatch<AppDispatch>();
@@ -261,7 +262,7 @@ export default function Invoices() {
       customerId: invoice.customerId,
       totalAmount: invoice.totalAmount.toString(),
       currency: invoice.currency,
-      date: invoice.date ? new Date(invoice.date) : new Date(),
+      date: new Date(invoice.date),
       invoiceLink: invoice.invoiceLink ?? '',
     });
     setIsDialogOpen(true);
@@ -281,6 +282,489 @@ export default function Invoices() {
           description: 'Failed to delete invoice',
         });
       }
+    }
+  };
+
+  const invoicesToAdd = [
+    {
+      invoiceNo: '0006 PL-SM-INV',
+      date: '2024-07-12',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 1992.0,
+    },
+    {
+      invoiceNo: '0007 PL-SM-INV',
+      date: '2024-07-29',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 7972.4,
+    },
+    {
+      invoiceNo: '0008 PL-SM-INV',
+      date: '2024-08-01',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 3905.3,
+    },
+    {
+      invoiceNo: '0009 PL-SM-INV',
+      date: '2024-08-01',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 3174.0,
+    },
+    {
+      invoiceNo: '0010 PL-SM-INV',
+      date: '2024-08-10',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 7738.3,
+    },
+    {
+      invoiceNo: '0011 PL-SM-INV',
+      date: '2024-08-28',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 6324.0,
+    },
+    {
+      invoiceNo: '0012 PL-SM-INV',
+      date: '2024-08-30',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 6742.0,
+    },
+    {
+      invoiceNo: '0013 PL-SM-INV',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      customerName: 'Firus Marina Invesment Limited',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      date: '2024-09-05',
+      totalAmount: 4000.0,
+    },
+    {
+      invoiceNo: '0014 PL-SM-INV',
+      date: '2024-08-30',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 452.0,
+    },
+    {
+      invoiceNo: '0015 PL-SM-INV',
+      date: '2024-09-07',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 3359.0,
+    },
+    {
+      invoiceNo: '0016 PL-SM-INV',
+      date: '2024-04-22',
+      customerName: 'Ocean Tuna Catch Co.,Ltd.',
+      customerId: 'AlrIElZps43sj2hjTFbn',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61498&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'EUR',
+      totalAmount: 71183.0,
+    },
+    {
+      invoiceNo: '0017 PL-SM-INV',
+      date: '2024-10-17',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 1948.0,
+    },
+    {
+      invoiceNo: '0018 PL-SM-INV',
+      date: '2024-10-18',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 1490.0,
+    },
+    {
+      invoiceNo: '0019 PL-SM-INV',
+      date: '2024-10-23',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 8100.0,
+    },
+    {
+      invoiceNo: '0020 PL-SM-INV',
+      date: '2024-10-24',
+      customerName: 'Cargo Smart Ltd',
+      customerId: '6vCH2LNbaa3rCUrB0i2w',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!63441&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 5079.0,
+    },
+    {
+      invoiceNo: '0021 PL-SM-INV',
+      date: '2024-11-09',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 1431.0,
+    },
+    {
+      invoiceNo: '0022 PL-SM-INV',
+      date: '2024-11-09',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 2510.0,
+    },
+    {
+      invoiceNo: '0023 PL-SM-INV',
+      date: '2024-11-09',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 2050.0,
+    },
+    {
+      invoiceNo: '0024 PL-SM-INV',
+      date: '2024-11-09',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 12700.0,
+    },
+    {
+      invoiceNo: '0025 PL-SM-INV',
+      date: '2024-11-25',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 1940.0,
+    },
+    {
+      invoiceNo: '0026 PL-SM-INV',
+      date: '2024-11-25',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 1740.0,
+    },
+    {
+      invoiceNo: '0027 PL-SM-INV',
+      date: '2025-02-04',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 3355.0,
+    },
+    {
+      invoiceNo: '0028 PL-SM-INV',
+      date: '2024-12-20',
+      customerName: 'Ocean Tuna Catch Co.,Ltd.',
+      customerId: 'AlrIElZps43sj2hjTFbn',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61498&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'EUR',
+      totalAmount: 11321.56,
+    },
+    {
+      invoiceNo: '0029 PL-SM-INV',
+      date: '2024-12-20',
+      customerName: 'Ocean Tuna Catch Co.,Ltd.',
+      customerId: 'AlrIElZps43sj2hjTFbn',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61498&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'EUR',
+      totalAmount: 11761.24,
+    },
+    {
+      invoiceNo: '0030 PL-SM-INV',
+      date: '2024-12-20',
+      customerName: 'Ocean Tuna Catch Co.,Ltd.',
+      customerId: 'AlrIElZps43sj2hjTFbn',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61498&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'EUR',
+      totalAmount: 11121.51,
+    },
+    {
+      invoiceNo: '0031 PL-SM-INV',
+      date: '2024-12-30',
+      customerName: 'Ocean Tuna Catch Co.,Ltd.',
+      customerId: 'AlrIElZps43sj2hjTFbn',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61498&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'EUR',
+      totalAmount: 6099.3,
+    },
+    {
+      invoiceNo: '0032 PL-SM-INV',
+      date: '2025-01-25',
+      customerName: 'Ocean Tuna Catch Co.,Ltd.',
+      customerId: 'AlrIElZps43sj2hjTFbn',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61498&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'EUR',
+      totalAmount: 340.4,
+    },
+    {
+      invoiceNo: '0033 PL-SM-INV',
+      date: '2025-03-07',
+      customerName: 'Cargo Smart Ltd',
+      customerId: '6vCH2LNbaa3rCUrB0i2w',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!63441&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 3840.0,
+    },
+    {
+      invoiceNo: '0034 PL-SM-INV',
+      date: '2025-03-05',
+      customerName: 'Hassan Taher Seafoods',
+      customerId: 'NsXRYkpGzQ2r87fVfYiv',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!65573&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'JPY',
+      totalAmount: 1211574.0,
+    },
+    {
+      invoiceNo: '0035 PL-SM-INV',
+      date: '2025-03-09',
+      customerName: 'J.N Acuamarine',
+      customerId: '3YpaxjdBdjcwVb7VGklm',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!65199&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'JPY',
+      totalAmount: 47256.0,
+    },
+    {
+      invoiceNo: '0036 PL-SM-INV',
+      date: '2025-03-17',
+      customerName: 'Hassan Taher Seafoods',
+      customerId: 'NsXRYkpGzQ2r87fVfYiv',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!65573&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'JPY',
+      totalAmount: 115000.0,
+    },
+    {
+      invoiceNo: '0037 PL-SM-INV',
+      date: '2025-03-22',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 521.0,
+    },
+    {
+      invoiceNo: '0038 PL-SM-INV',
+      date: '2025-03-28',
+      customerName: 'Ocean Tuna Catch Co.,Ltd.',
+      customerId: 'AlrIElZps43sj2hjTFbn',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61498&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'EUR',
+      totalAmount: 1.0,
+    },
+    {
+      invoiceNo: '0039 PL-SM-INV',
+      date: '2025-03-29',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 1488.5,
+    },
+    {
+      invoiceNo: '0040 PL-SM-INV',
+      date: '2025-05-01',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 1249.5,
+    },
+    {
+      invoiceNo: '0041 PL-SM-INV',
+      date: '2025-05-26',
+      customerName: 'Ocean Tuna Catch Co.,Ltd.',
+      customerId: 'AlrIElZps43sj2hjTFbn',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61498&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'EUR',
+      totalAmount: 20982.29,
+    },
+    {
+      invoiceNo: '0042 PL-SM-INV',
+      date: '2025-05-17',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 2331.6,
+    },
+    {
+      invoiceNo: '0043 PL-SM-INV',
+      date: '2025-05-26',
+      customerName: 'Ocean Tuna Catch Co.,Ltd.',
+      customerId: 'AlrIElZps43sj2hjTFbn',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61498&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'EUR',
+      totalAmount: 2200.0,
+    },
+    {
+      invoiceNo: '0044 PL-SM-INV',
+      date: '2025-06-06',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 13660.0,
+    },
+    {
+      invoiceNo: '0045 PL-SM-INV',
+      date: '2025-06-08',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 2840.0,
+    },
+    {
+      invoiceNo: '0046 PL-SM-INV',
+      date: '2025-06-10',
+      customerName: 'Ocean Tuna Catch Co.,Ltd.',
+      customerId: 'AlrIElZps43sj2hjTFbn',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61498&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'EUR',
+      totalAmount: 5648.7,
+    },
+    {
+      invoiceNo: '0047 PL-SM-INV',
+      date: '2025-06-11',
+      customerName: 'Cargo Smart Ltd',
+      customerId: '6vCH2LNbaa3rCUrB0i2w',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!63441&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'USD',
+      totalAmount: 3250.0,
+    },
+    {
+      invoiceNo: '0048 PL-SM-INV',
+      date: '2025-07-10',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'JPY',
+      totalAmount: 229358.0,
+    },
+    {
+      invoiceNo: '0049 PL-SM-INV',
+      date: '2025-07-11',
+      customerName: 'Firus Marina Invesment Limited',
+      customerId: 'HRsjIPX1SHeogHpYQLJb',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!61497&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'JPY',
+      totalAmount: 281171.0,
+    },
+    {
+      invoiceNo: '0050 PL-SM-INV',
+      date: '2025-07-17',
+      customerName: 'Hassan Taher Seafoods',
+      customerId: 'NsXRYkpGzQ2r87fVfYiv',
+      invoiceLink:
+        'https://onedrive.live.com/personal/c17acb6b6c188e28/_layouts/15/Doc.aspx?resid=C17ACB6B6C188E28!65573&cid=c17acb6b6c188e28&migratedtospo=true&app=Excel',
+      currency: 'JPY',
+      totalAmount: 513000.0,
+    },
+  ];
+
+  const bulkAddInvoices = async () => {
+    try {
+      setIsLoading(true);
+      for (const invoice of invoicesToAdd) {
+        const id = await addInvoice({
+          invoiceNo: invoice.invoiceNo,
+          customerId: invoice.customerId,
+          customerName: invoice.customerName,
+          invoiceLink: invoice.invoiceLink,
+          totalAmount: invoice.totalAmount,
+          amountPaid: 0,
+          currency: invoice.currency,
+          balance: invoice.totalAmount,
+          status: 'pending',
+          date: invoice.date,
+          createdAt: new Date(),
+          foreignBankCharge: 0,
+          localBankCharge: 0,
+        });
+
+        console.log(id);
+      }
+      console.log('All invoices added successfully');
+    } catch (error) {
+      console.error('Error adding invoices:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -571,6 +1055,16 @@ export default function Invoices() {
             Manage customer invoices and track payments
           </p>
         </div>
+
+        <Button
+          variant="outline"
+          className="min-w-36"
+          onClick={() => bulkAddInvoices()}
+          isLoading={isLoading}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Bulk Add
+        </Button>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
