@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, Home, Users, FileText, CreditCard, LogOut } from 'lucide-react';
+import {
+  Menu,
+  Home,
+  Users,
+  FileText,
+  CreditCard,
+  LogOut,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -42,19 +50,24 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pt-8 md:p-0">
       {/* Mobile sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetTrigger asChild>
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden  top-4 left-4 m-4 "
+            className="md:hidden fixed top-4 right-4 z-50"
+            onClick={() => setSidebarOpen((prev) => !prev)}
           >
-            <Menu className="h-6 w-6" />
+            {sidebarOpen ? (
+              <X className="h-6 w-6 transition-transform duration-200" />
+            ) : (
+              <Menu className="h-6 w-6 transition-transform duration-200" />
+            )}
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="right" className="w-64 p-0">
           <SheetHeader>
             <SheetTitle className="text-lg font-semibold">
               Invoice Manager

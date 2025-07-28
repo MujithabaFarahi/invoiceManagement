@@ -76,7 +76,6 @@ import {
   fetchCustomers,
   updateCustomerInList,
 } from '@/redux/features/paymentSlice';
-import { Checkbox } from '@radix-ui/react-checkbox';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -230,28 +229,28 @@ export default function Customers() {
   };
 
   const columns: ColumnDef<Customer>[] = [
-    {
-      id: 'select',
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && 'indeterminate')
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
+    // {
+    //   id: 'select',
+    //   header: ({ table }) => (
+    //     <Checkbox
+    //       checked={
+    //         table.getIsAllPageRowsSelected() ||
+    //         (table.getIsSomePageRowsSelected() && 'indeterminate')
+    //       }
+    //       onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+    //       aria-label="Select all"
+    //     />
+    //   ),
+    //   cell: ({ row }) => (
+    //     <Checkbox
+    //       checked={row.getIsSelected()}
+    //       onCheckedChange={(value) => row.toggleSelected(!!value)}
+    //       aria-label="Select row"
+    //     />
+    //   ),
+    //   enableSorting: false,
+    //   enableHiding: false,
+    // },
     {
       accessorKey: 'name',
       header: ({ column }) => {
@@ -728,8 +727,17 @@ export default function Customers() {
           <div className="flex flex-col justify-between gap-4 w-full md:flex-row">
             <div className="flex items-center gap-2 justify-center">
               <p className="text-sm text-muted-foreground">
-                Selected {table.getFilteredSelectedRowModel().rows.length} of{' '}
-                {table.getFilteredRowModel().rows.length} customers
+                Showing{' '}
+                {table.getState().pagination.pageIndex *
+                  table.getState().pagination.pageSize +
+                  1}
+                -
+                {Math.min(
+                  (table.getState().pagination.pageIndex + 1) *
+                    table.getState().pagination.pageSize,
+                  table.getFilteredRowModel().rows.length
+                )}{' '}
+                of {table.getFilteredRowModel().rows.length} customers
               </p>
             </div>
             <Pagination>

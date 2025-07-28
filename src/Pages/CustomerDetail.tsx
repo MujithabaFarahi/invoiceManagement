@@ -707,8 +707,17 @@ export default function CustomerDetail() {
           <div className="flex flex-col justify-between gap-4 w-full md:flex-row">
             <div className="flex items-center gap-2 justify-center">
               <p className="text-sm text-muted-foreground">
-                Selected {table.getFilteredSelectedRowModel().rows.length} of{' '}
-                {table.getFilteredRowModel().rows.length} invoices
+                Showing{' '}
+                {table.getState().pagination.pageIndex *
+                  table.getState().pagination.pageSize +
+                  1}
+                -
+                {Math.min(
+                  (table.getState().pagination.pageIndex + 1) *
+                    table.getState().pagination.pageSize,
+                  table.getFilteredRowModel().rows.length
+                )}{' '}
+                of {table.getFilteredRowModel().rows.length} invoices
               </p>
             </div>
             <Pagination>

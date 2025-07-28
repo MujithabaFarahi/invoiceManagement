@@ -113,7 +113,6 @@ export const getInvoiceById = async (invoiceId: string): Promise<Invoice> => {
   return {
     id: invoiceSnap.id,
     ...data,
-    date: data.date.toDate(),
     createdAt: data.createdAt.toDate(),
   } as Invoice;
 };
@@ -371,6 +370,25 @@ export const getPaymentAllocations = async (
   const allocationsRef = collection(db, 'paymentAllocations');
 
   const q = query(allocationsRef, where('paymentId', '==', paymentId));
+
+  const querySnapshot = await getDocs(q);
+
+  return querySnapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt.toDate(),
+    } as PaymentAllocation;
+  });
+};
+
+export const getPaymentAllocationsByInvoiceId = async (
+  invoiceId: string
+): Promise<PaymentAllocation[]> => {
+  const allocationsRef = collection(db, 'paymentAllocations');
+
+  const q = query(allocationsRef, where('invoiceId', '==', invoiceId));
 
   const querySnapshot = await getDocs(q);
 

@@ -65,7 +65,6 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -96,8 +95,10 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '@/Config/firebase';
+import { useNavigate } from 'react-router-dom';
 
 export default function Invoices() {
+  const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
 
   const { currencies, customers } = useSelector(
@@ -302,28 +303,28 @@ export default function Invoices() {
   };
 
   const columns: ColumnDef<Invoice>[] = [
-    {
-      id: 'select',
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && 'indeterminate')
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
+    // {
+    //   id: 'select',
+    //   header: ({ table }) => (
+    //     <Checkbox
+    //       checked={
+    //         table.getIsAllPageRowsSelected() ||
+    //         (table.getIsSomePageRowsSelected() && 'indeterminate')
+    //       }
+    //       onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+    //       aria-label="Select all"
+    //     />
+    //   ),
+    //   cell: ({ row }) => (
+    //     <Checkbox
+    //       checked={row.getIsSelected()}
+    //       onCheckedChange={(value) => row.toggleSelected(!!value)}
+    //       aria-label="Select row"
+    //     />
+    //   ),
+    //   enableSorting: false,
+    //   enableHiding: false,
+    // },
 
     {
       accessorKey: 'invoiceNo',
@@ -949,6 +950,8 @@ export default function Invoices() {
                 {table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
                     <TableRow
+                      className="cursor-pointer"
+                      onClick={() => navigate(`/invoices/${row.original.id}`)}
                       key={row.id}
                       data-state={row.getIsSelected() && 'selected'}
                     >
@@ -989,8 +992,17 @@ export default function Invoices() {
           <div className="flex flex-col justify-between gap-4 w-full md:flex-row">
             <div className="flex items-center gap-2 justify-center">
               <p className="text-sm text-muted-foreground">
-                Selected {table.getFilteredSelectedRowModel().rows.length} of{' '}
-                {table.getFilteredRowModel().rows.length} invoices
+                Showing{' '}
+                {table.getState().pagination.pageIndex *
+                  table.getState().pagination.pageSize +
+                  1}
+                -
+                {Math.min(
+                  (table.getState().pagination.pageIndex + 1) *
+                    table.getState().pagination.pageSize,
+                  table.getFilteredRowModel().rows.length
+                )}{' '}
+                of {table.getFilteredRowModel().rows.length} invoices
               </p>
             </div>
             <Pagination>

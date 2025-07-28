@@ -59,7 +59,6 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/Config/firebase';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -403,28 +402,28 @@ export default function Payments() {
   };
 
   const columns: ColumnDef<Payment>[] = [
-    {
-      id: 'select',
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && 'indeterminate')
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
+    // {
+    //   id: 'select',
+    //   header: ({ table }) => (
+    //     <Checkbox
+    //       checked={
+    //         table.getIsAllPageRowsSelected() ||
+    //         (table.getIsSomePageRowsSelected() && 'indeterminate')
+    //       }
+    //       onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+    //       aria-label="Select all"
+    //     />
+    //   ),
+    //   cell: ({ row }) => (
+    //     <Checkbox
+    //       checked={row.getIsSelected()}
+    //       onCheckedChange={(value) => row.toggleSelected(!!value)}
+    //       aria-label="Select row"
+    //     />
+    //   ),
+    //   enableSorting: false,
+    //   enableHiding: false,
+    // },
 
     {
       accessorKey: 'paymentNo',
@@ -788,7 +787,7 @@ export default function Payments() {
                 <div className="grid md:grid-cols-2 gap-4 w-full">
                   <div className="grid gap-2 w-full">
                     <Label htmlFor="foreignBankCharge">
-                      Foreign Bank Payment
+                      Foreign Bank Charge
                     </Label>
                     <Input
                       id="foreignBankCharge"
@@ -805,7 +804,7 @@ export default function Payments() {
                     />
                   </div>
                   <div className="grid gap-2 w-full">
-                    <Label htmlFor="localBankCharge">Local Bank Payment</Label>
+                    <Label htmlFor="localBankCharge">Local Bank Charge</Label>
                     <Input
                       id="localBankCharge"
                       type="number"
@@ -1047,8 +1046,17 @@ export default function Payments() {
           <div className="flex flex-col justify-between gap-4 w-full md:flex-row">
             <div className="flex items-center gap-2 justify-center">
               <p className="text-sm text-muted-foreground">
-                Selected {table.getFilteredSelectedRowModel().rows.length} of{' '}
-                {table.getFilteredRowModel().rows.length} payments
+                Showing{' '}
+                {table.getState().pagination.pageIndex *
+                  table.getState().pagination.pageSize +
+                  1}
+                -
+                {Math.min(
+                  (table.getState().pagination.pageIndex + 1) *
+                    table.getState().pagination.pageSize,
+                  table.getFilteredRowModel().rows.length
+                )}{' '}
+                of {table.getFilteredRowModel().rows.length} payments
               </p>
             </div>
             <Pagination>
