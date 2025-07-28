@@ -23,6 +23,7 @@ export interface paymentState {
   customer: Customer;
   customers: Customer[];
   currencies: Currency[];
+  exchangeRates: Record<string, number> | null;
 }
 
 const initialState: paymentState = {
@@ -37,6 +38,7 @@ const initialState: paymentState = {
   customer: {} as Customer,
   customers: [],
   currencies: [],
+  exchangeRates: null,
 };
 
 export const fetchPayments = createAsyncThunk<Payment[]>(
@@ -121,6 +123,12 @@ const paymentSlice = createSlice({
       );
       state.customer = customer || ({} as Customer);
     },
+    setExchangeRates: (
+      state,
+      action: PayloadAction<Record<string, number>>
+    ) => {
+      state.exchangeRates = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -181,5 +189,6 @@ export const {
   updatePaymentInList,
   deletePaymentFromList,
   selectCustomer,
+  setExchangeRates,
 } = paymentSlice.actions;
 export default paymentSlice.reducer;

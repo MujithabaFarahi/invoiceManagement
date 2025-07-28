@@ -4,7 +4,7 @@ export interface Customer {
   email?: string;
   phone?: string;
   address?: string;
-  amountRecieved?: number;
+  amountInJPY?: number;
   currency: string;
   createdAt: Date;
 }
@@ -40,6 +40,7 @@ export interface Currency {
   name: string;
   amountDue: number;
   amountPaid: number;
+  amountInJPY?: number;
   foreignBankCharge: number;
   localBankCharge: number;
 }
@@ -54,7 +55,7 @@ export interface Payment {
   amount: number;
   allocatedAmount: number;
   remainingAmount: number;
-  amountRecieved: number;
+  amountInJPY: number;
   foreignBankCharge: number;
   localBankCharge: number;
   createdAt: Date;

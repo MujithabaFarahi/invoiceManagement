@@ -242,7 +242,7 @@ export default function Payments() {
       }));
 
     const amount = Number.parseFloat(formData.amount);
-    const amountRecieved = Number.parseFloat(formData.JPYamount);
+    const amountInJPY = Number.parseFloat(formData.JPYamount);
     const totalAllocated = nonZeroAllocations.reduce(
       (sum, i) => sum + i.allocatedAmount,
       0
@@ -288,7 +288,7 @@ export default function Payments() {
         amount,
         allocatedAmount: totalAllocated,
         remainingAmount: amount - totalAllocated,
-        amountRecieved,
+        amountInJPY,
         foreignBankCharge,
         localBankCharge,
         createdAt: new Date(),
@@ -337,9 +337,9 @@ export default function Payments() {
       const customerRef = doc(db, 'customers', formData.customerId);
       const customerSnap = await getDoc(customerRef);
       if (customerSnap.exists()) {
-        const currentAmount = customerSnap.data().amountRecieved || 0;
+        const currentAmount = customerSnap.data().amountInJPY || 0;
         batch.update(customerRef, {
-          amountRecieved: currentAmount + amountRecieved,
+          amountInJPY: currentAmount + amountInJPY,
         });
       }
 
@@ -356,20 +356,16 @@ export default function Payments() {
         const currentAmountPaid = currencyData.amountPaid || 0;
         const currentlocalBankCharge = currencyData.localBankCharge || 0;
         const currentforeignBankCharge = currencyData.foreignBankCharge || 0;
+        const currentAmountInJPY = currencyData.amountInJPY || 0;
 
         batch.update(currencyDoc.ref, {
           amountDue: Math.max(0, currentAmountDue - totalAllocated),
           amountPaid: currentAmountPaid + totalAllocated,
           localBankCharge: currentlocalBankCharge + localBankCharge,
           foreignBankCharge: currentforeignBankCharge + foreignBankCharge,
+          amountInJPY: currentAmountInJPY + amountInJPY,
         });
       }
-
-      // 6. Update Payment allocation info
-      batch.update(doc(db, 'payments', paymentId), {
-        allocatedAmount: totalAllocated,
-        remainingAmount: amount - totalAllocated,
-      });
 
       await batch.commit();
 
@@ -752,7 +748,15 @@ export default function Payments() {
                         setErrorMessage(null);
                       }
 
-                      setFormData({ ...formData, amount: e.target.value });
+                      if (formData.currency === 'JPY') {
+                        setFormData({
+                          ...formData,
+                          JPYamount: e.target.value,
+                          amount: e.target.value,
+                        });
+                      } else {
+                        setFormData({ ...formData, amount: e.target.value });
+                      }
 
                       if (e.target.value) {
                         allocatePaymentToInvoices(e.target.value);
@@ -774,8 +778,6 @@ export default function Payments() {
                     type="number"
                     step="0.01"
                     value={formData.JPYamount}
-                    min="0"
-                    max={getTotalDue()}
                     onChange={(e) =>
                       setFormData({ ...formData, JPYamount: e.target.value })
                     }

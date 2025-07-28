@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -16,7 +16,11 @@ import {
 } from '@/Config/firestore';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '@/redux/store/store';
-import { fetchCurrencies, fetchPayments } from '@/redux/features/paymentSlice';
+import {
+  fetchCurrencies,
+  fetchPayments,
+  setExchangeRates,
+} from '@/redux/features/paymentSlice';
 import { Spinner } from '@/components/ui/spinner';
 import { useNavigate } from 'react-router-dom';
 
@@ -24,7 +28,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
 
-  const { payments, currencies, loading } = useSelector(
+  const { payments, currencies, loading, exchangeRates } = useSelector(
     (state: RootState) => state.payment
   );
 
@@ -65,12 +69,7 @@ export default function Dashboard() {
     fetchStats();
   }, [dispatch, payments.length]);
 
-  const [exchangeRates, setExchangeRates] = useState<Record<
-    string,
-    number
-  > | null>(null);
-
-  const fetchExchangeRates = async () => {
+  const fetchExchangeRates = useCallback(async () => {
     try {
       const res = await fetch(
         'https://www.shizuokabank.co.jp/interest/cmn/js/rate.php'
@@ -80,14 +79,17 @@ export default function Dashboard() {
       const rates: Record<string, number> = {
         USD: parseFloat(data.save_us_ttb),
         EUR: parseFloat(data.save_euro_ttb),
-        // Add more if needed
       };
 
-      setExchangeRates(rates);
+      dispatch(setExchangeRates(rates));
     } catch (err) {
       console.error('Failed to fetch exchange rates', err);
     }
-  };
+  }, [dispatch]);
+
+  useEffect(() => {
+    fetchExchangeRates();
+  }, [fetchExchangeRates]);
 
   const [totalPendingInJPY, setTotalPendingInJPY] = useState<number | null>(
     null
@@ -97,29 +99,25 @@ export default function Dashboard() {
   );
 
   useEffect(() => {
-    fetchExchangeRates();
-  }, []);
-
-  useEffect(() => {
     if (!exchangeRates || currencies.length === 0) return;
 
     let pending = 0;
-    let received = 0;
+    let recieved = 0;
 
     currencies.forEach((currency) => {
       if (currency.code === 'JPY') {
         pending += currency.amountDue || 0;
-        received += currency.amountPaid || 0;
+        recieved += currency.amountInJPY || 0;
       } else if (exchangeRates[currency.code]) {
         pending += (currency.amountDue || 0) * exchangeRates[currency.code];
-        received += (currency.amountPaid || 0) * exchangeRates[currency.code];
+        recieved += currency.amountInJPY || 0;
       } else {
         console.warn(`No exchange rate found for ${currency.code}`);
       }
     });
 
     setTotalPendingInJPY(pending);
-    setTotalReceivedInJPY(received);
+    setTotalReceivedInJPY(recieved);
   }, [exchangeRates, currencies]);
 
   return (
