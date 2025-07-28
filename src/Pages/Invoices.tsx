@@ -261,7 +261,7 @@ export default function Invoices() {
       customerId: invoice.customerId,
       totalAmount: invoice.totalAmount.toString(),
       currency: invoice.currency,
-      date: new Date(invoice.date),
+      date: invoice.date ? new Date(invoice.date) : new Date(),
       invoiceLink: invoice.invoiceLink ?? '',
     });
     setIsDialogOpen(true);
