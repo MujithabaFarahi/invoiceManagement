@@ -142,6 +142,7 @@ export default function Invoices() {
   }, [dispatch]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -269,19 +270,20 @@ export default function Invoices() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this invoice?')) {
-      try {
-        await deleteInvoice(id);
-        toast.success('Success', {
-          description: 'Invoice deleted successfully',
-        });
-        // dispatch(deleteInvoiceFromList(id));
-      } catch (error) {
-        console.error('Error deleting invoice:', error);
-        toast.error('Error', {
-          description: 'Failed to delete invoice',
-        });
-      }
+    try {
+      await deleteInvoice(id);
+      toast.success('Success', {
+        description: 'Invoice deleted successfully',
+      });
+      // dispatch(deleteInvoiceFromList(id));
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      toast.error('Error', {
+        description: 'Failed to delete invoice',
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setEditingInvoice(null);
     }
   };
 
@@ -303,29 +305,6 @@ export default function Invoices() {
   };
 
   const columns: ColumnDef<Invoice>[] = [
-    // {
-    //   id: 'select',
-    //   header: ({ table }) => (
-    //     <Checkbox
-    //       checked={
-    //         table.getIsAllPageRowsSelected() ||
-    //         (table.getIsSomePageRowsSelected() && 'indeterminate')
-    //       }
-    //       onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-    //       aria-label="Select all"
-    //     />
-    //   ),
-    //   cell: ({ row }) => (
-    //     <Checkbox
-    //       checked={row.getIsSelected()}
-    //       onCheckedChange={(value) => row.toggleSelected(!!value)}
-    //       aria-label="Select row"
-    //     />
-    //   ),
-    //   enableSorting: false,
-    //   enableHiding: false,
-    // },
-
     {
       accessorKey: 'invoiceNo',
       header: ({ column }) => {
@@ -470,14 +449,18 @@ export default function Invoices() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(invoice.invoiceNo)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(invoice.invoiceNo);
+                }}
               >
                 Copy Invoice No
               </DropdownMenuItem>
               <DropdownMenuSeparator />
 
               <DropdownMenuItem
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   if (invoice.status === 'paid') {
                     toast.error('Error', {
                       description: 'Cannot edit a paid invoice',
@@ -496,7 +479,8 @@ export default function Invoices() {
                 Edit Invoice
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   if (invoice.status === 'paid') {
                     toast.error('Error', {
                       description: 'Cannot delete a paid invoice',
@@ -508,7 +492,8 @@ export default function Invoices() {
                     });
                     return;
                   }
-                  handleDelete(invoice.id);
+                  setEditingInvoice(invoice);
+                  setIsDeleteDialogOpen(true);
                 }}
               >
                 <Trash2 className="text-red-700" />
@@ -572,6 +557,38 @@ export default function Invoices() {
             Manage customer invoices and track payments
           </p>
         </div>
+
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Invoice</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this invoice? This action cannot
+                be undone.
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                isLoading={isLoading}
+                onClick={() => {
+                  if (editingInvoice) {
+                    handleDelete(editingInvoice.id);
+                  }
+                }}
+              >
+                Delete Invoice
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>

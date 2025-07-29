@@ -336,14 +336,18 @@ export default function Customers() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(customer.name)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(customer.name);
+                }}
               >
                 Copy Customer Name
               </DropdownMenuItem>
               <DropdownMenuSeparator />
 
               <DropdownMenuItem
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   handleEdit(customer);
                 }}
               >
@@ -351,7 +355,8 @@ export default function Customers() {
                 Edit Customer
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   const length = invoices.filter(
                     (invoice) => invoice.customerId === customer.id
                   ).length;
@@ -425,10 +430,13 @@ export default function Customers() {
 
         <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <DialogContent>
-            <p className=" text-muted-foreground font-semibold">
-              Are you sure you want to delete this customer? This action cannot
-              be undone.
-            </p>
+            <DialogHeader>
+              <DialogTitle>Delete Customer</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this customer? This action
+                cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
 
             <DialogFooter>
               <Button

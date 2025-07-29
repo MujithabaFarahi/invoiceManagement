@@ -412,3 +412,26 @@ export const getCurrencies = async (): Promise<Currency[]> => {
     } as Currency;
   });
 };
+
+export const getLastPaymentByCustomerId = async (
+  customerId: string
+): Promise<Payment | null> => {
+  const paymentsQuery = query(
+    collection(db, 'payments'),
+    where('customerId', '==', customerId),
+    orderBy('createdAt', 'desc'),
+    limit(1)
+  );
+
+  const paymentsSnap = await getDocs(paymentsQuery);
+  if (paymentsSnap.empty) return null;
+
+  const docSnap = paymentsSnap.docs[0];
+  const data = docSnap.data();
+
+  return {
+    id: docSnap.id,
+    ...data,
+    createdAt: data.createdAt.toDate(),
+  } as Payment;
+};

@@ -10,6 +10,7 @@ import {
   FilterX,
   MoreHorizontal,
   Plus,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,8 +47,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { addPayment } from '@/Config/firestore';
-import { getPaginationRange, type Invoice, type Payment } from '@/Config/types';
+import { addPayment, getLastPaymentByCustomerId } from '@/Config/firestore';
+import {
+  getPaginationRange,
+  type Invoice,
+  type Payment,
+  type PaymentAllocation,
+} from '@/Config/types';
 import { toast } from 'sonner';
 import {
   collection,
@@ -93,6 +99,7 @@ import type { AppDispatch, RootState } from '@/redux/store/store';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   addPaymentToList,
+  deletePaymentFromList,
   fetchCurrencies,
   fetchCustomers,
   fetchPayments,
@@ -136,8 +143,10 @@ export default function Payments() {
   }, [dispatch, currencies.length, customers.length, payments.length]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     paymentNo: '',
@@ -166,7 +175,7 @@ export default function Payments() {
 
   const getTotalDue = () => {
     const total = customerInvoices.reduce((sum, inv) => sum + inv.balance, 0);
-    return total;
+    return +total.toFixed(2);
   };
 
   const allocatePaymentToInvoices = (value: string) => {
@@ -243,10 +252,9 @@ export default function Payments() {
 
     const amount = Number.parseFloat(formData.amount);
     const amountInJPY = Number.parseFloat(formData.JPYamount);
-    const totalAllocated = nonZeroAllocations.reduce(
-      (sum, i) => sum + i.allocatedAmount,
-      0
-    );
+    const totalAllocated = +nonZeroAllocations
+      .reduce((sum, i) => sum + i.allocatedAmount, 0)
+      .toFixed(2);
 
     if (totalAllocated > amount) {
       toast.error('Error', {
@@ -281,7 +289,7 @@ export default function Payments() {
       // 1. Add Payment
       const paymentData = {
         paymentNo: formData.paymentNo,
-        date: formData.date.toLocaleDateString(),
+        date: formData.date.toLocaleDateString('ja-JP'),
         customerId: formData.customerId,
         customerName: customer.name,
         currency: formData.currency,
@@ -304,13 +312,17 @@ export default function Payments() {
         if (!invoiceSnap.exists()) continue;
 
         const invoice = invoiceSnap.data() as Invoice;
-        const newAmountPaid = invoice.amountPaid + alloc.allocatedAmount;
-        const newBalance = invoice.totalAmount - newAmountPaid;
+        const newAmountPaid = +(
+          invoice.amountPaid + alloc.allocatedAmount
+        ).toFixed(2);
+        const newBalance = +(invoice.totalAmount - newAmountPaid).toFixed(2);
         const newStatus = newBalance === 0 ? 'paid' : 'partially_paid';
-        const newforeignBankCharge =
-          invoice.foreignBankCharge + alloc.foreignBankCharge;
-        const newlocalBankCharge =
-          invoice.localBankCharge + alloc.localBankCharge;
+        const newforeignBankCharge = +(
+          invoice.foreignBankCharge + alloc.foreignBankCharge
+        ).toFixed(2);
+        const newlocalBankCharge = +(
+          invoice.localBankCharge + alloc.localBankCharge
+        ).toFixed(2);
 
         batch.update(invoiceRef, {
           amountPaid: newAmountPaid,
@@ -339,7 +351,7 @@ export default function Payments() {
       if (customerSnap.exists()) {
         const currentAmount = customerSnap.data().amountInJPY || 0;
         batch.update(customerRef, {
-          amountInJPY: currentAmount + amountInJPY,
+          amountInJPY: +(currentAmount + amountInJPY).toFixed(2),
         });
       }
 
@@ -360,10 +372,14 @@ export default function Payments() {
 
         batch.update(currencyDoc.ref, {
           amountDue: Math.max(0, currentAmountDue - totalAllocated),
-          amountPaid: currentAmountPaid + totalAllocated,
-          localBankCharge: currentlocalBankCharge + localBankCharge,
-          foreignBankCharge: currentforeignBankCharge + foreignBankCharge,
-          amountInJPY: currentAmountInJPY + amountInJPY,
+          amountPaid: +(currentAmountPaid + totalAllocated).toFixed(2),
+          localBankCharge: +(currentlocalBankCharge + localBankCharge).toFixed(
+            2
+          ),
+          foreignBankCharge: +(
+            currentforeignBankCharge + foreignBankCharge
+          ).toFixed(2),
+          amountInJPY: +(currentAmountInJPY + amountInJPY).toFixed(2),
         });
       }
 
@@ -396,6 +412,145 @@ export default function Payments() {
       console.error('Error recording payment:', error);
       toast.error('Error', {
         description: 'Failed to record payment',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (paymentId: string) => {
+    if (!paymentId) return;
+
+    try {
+      setIsLoading(true);
+
+      // 1. Get Payment
+      const paymentRef = doc(db, 'payments', paymentId);
+      const paymentSnap = await getDoc(paymentRef);
+      if (!paymentSnap.exists()) {
+        toast.error('Error', { description: 'Payment not found' });
+        return;
+      }
+
+      const paymentData = paymentSnap.data() as Payment;
+
+      // 2. Get Allocations
+      const allocationsSnap = await getDocs(
+        query(
+          collection(db, 'paymentAllocations'),
+          where('paymentId', '==', paymentId)
+        )
+      );
+
+      if (allocationsSnap.empty) {
+        toast.error('Error', {
+          description: 'No allocations found for payment',
+        });
+        return;
+      }
+
+      const batch = writeBatch(db);
+
+      for (const allocDoc of allocationsSnap.docs) {
+        const alloc = allocDoc.data() as PaymentAllocation;
+        const invoiceRef = doc(db, 'invoices', alloc.invoiceId);
+        const invoiceSnap = await getDoc(invoiceRef);
+        if (!invoiceSnap.exists()) continue;
+
+        const invoice = invoiceSnap.data() as Invoice;
+
+        const newAmountPaid = +(
+          invoice.amountPaid - alloc.allocatedAmount
+        ).toFixed(2);
+        const newBalance = +(invoice.totalAmount - newAmountPaid).toFixed(2);
+        const newStatus =
+          newBalance === 0
+            ? 'paid'
+            : newAmountPaid === 0
+            ? 'unpaid'
+            : 'partially_paid';
+
+        const newforeignBankCharge = +(
+          invoice.foreignBankCharge - (alloc.foreignBankCharge || 0)
+        ).toFixed(2);
+
+        const newlocalBankCharge = +(
+          invoice.localBankCharge - (alloc.localBankCharge || 0)
+        ).toFixed(2);
+
+        batch.update(invoiceRef, {
+          amountPaid: Math.max(0, newAmountPaid),
+          balance: newBalance,
+          status: newStatus,
+          foreignBankCharge: newforeignBankCharge,
+          localBankCharge: newlocalBankCharge,
+        });
+
+        // Delete allocation
+        batch.delete(allocDoc.ref);
+      }
+
+      // 3. Delete Payment
+      batch.delete(paymentRef);
+
+      // 4. Update Customer amountInJPY
+      const customerRef = doc(db, 'customers', paymentData.customerId);
+      const customerSnap = await getDoc(customerRef);
+      if (customerSnap.exists()) {
+        const currentJPY = customerSnap.data().amountInJPY || 0;
+        batch.update(customerRef, {
+          amountInJPY: +(currentJPY - (paymentData.amountInJPY || 0)).toFixed(
+            2
+          ),
+        });
+      }
+
+      // 5. Update Currency Info
+      const currencyQuery = query(
+        collection(db, 'currencies'),
+        where('code', '==', paymentData.currency)
+      );
+      const currencySnap = await getDocs(currencyQuery);
+      if (!currencySnap.empty) {
+        const currencyDoc = currencySnap.docs[0];
+        const currencyData = currencyDoc.data();
+
+        const updatedAmountPaid = +(
+          currencyData.amountPaid - paymentData.allocatedAmount
+        ).toFixed(2);
+        const updatedAmountDue = +(
+          currencyData.amountDue + paymentData.allocatedAmount
+        ).toFixed(2);
+        const updatedLocalCharge = +(
+          currencyData.localBankCharge - (paymentData.localBankCharge || 0)
+        ).toFixed(2);
+        const updatedForeignCharge = +(
+          currencyData.foreignBankCharge - (paymentData.foreignBankCharge || 0)
+        ).toFixed(2);
+        const updatedJPY = +(
+          currencyData.amountInJPY - (paymentData.amountInJPY || 0)
+        ).toFixed(2);
+
+        batch.update(currencyDoc.ref, {
+          amountPaid: updatedAmountPaid,
+          amountDue: updatedAmountDue,
+          localBankCharge: updatedLocalCharge,
+          foreignBankCharge: updatedForeignCharge,
+          amountInJPY: updatedJPY,
+        });
+      }
+
+      await batch.commit();
+
+      dispatch(deletePaymentFromList(paymentId));
+
+      toast.success('Success', {
+        description: 'Payment deleted and allocations reversed successfully',
+      });
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      toast.error('Error', {
+        description: 'Failed to delete payment',
       });
     } finally {
       setIsLoading(false);
@@ -522,13 +677,45 @@ export default function Payments() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(payment.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(payment.id);
+                }}
               >
                 Copy payment ID
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>View customer</DropdownMenuItem>
-              <DropdownMenuItem>View payment details</DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Navigate to customer details page
+                }}
+              >
+                View customer
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={async (e) => {
+                  e.stopPropagation();
+
+                  const lastPayment = await getLastPaymentByCustomerId(
+                    payment.customerId
+                  );
+
+                  if (lastPayment?.id === payment.id) {
+                    // Safe to delete
+                    setPaymentId(payment.id);
+                    setIsDeleteDialogOpen(true);
+                  } else {
+                    toast.error('Cannot delete', {
+                      description:
+                        'Only the latest payment for this customer can be deleted.',
+                    });
+                  }
+                }}
+              >
+                <Trash2 className="text-red-700" />
+                Delete Payment
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         );
@@ -580,6 +767,38 @@ export default function Payments() {
             Record and track customer payments
           </p>
         </div>
+
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Payment</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this payment? This action cannot
+                be undone.
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                isLoading={isLoading}
+                onClick={() => {
+                  if (paymentId) {
+                    handleDelete(paymentId);
+                  }
+                }}
+              >
+                Delete Invoice
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
