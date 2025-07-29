@@ -49,7 +49,6 @@ import {
 } from '@/components/ui/select';
 import { addPayment, getLastPaymentByCustomerId } from '@/Config/firestore';
 import {
-  getPaginationRange,
   type Invoice,
   type Payment,
   type PaymentAllocation,
@@ -117,6 +116,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { getPaginationRange, toFixed2 } from '@/lib/utils';
 
 export default function Payments() {
   const navigate = useNavigate();
@@ -175,7 +175,7 @@ export default function Payments() {
 
   const getTotalDue = () => {
     const total = customerInvoices.reduce((sum, inv) => sum + inv.balance, 0);
-    return +total.toFixed(2);
+    return toFixed2(total);
   };
 
   const allocatePaymentToInvoices = (value: string) => {
@@ -252,10 +252,9 @@ export default function Payments() {
 
     const amount = Number.parseFloat(formData.amount);
     const amountInJPY = Number.parseFloat(formData.JPYamount);
-    const totalAllocated = +nonZeroAllocations
-      .reduce((sum, i) => sum + i.allocatedAmount, 0)
-      .toFixed(2);
-
+    const totalAllocated = toFixed2(
+      nonZeroAllocations.reduce((sum, i) => sum + i.allocatedAmount, 0)
+    );
     if (totalAllocated > amount) {
       toast.error('Error', {
         description: 'Allocated amount exceeds payment amount',
@@ -295,7 +294,7 @@ export default function Payments() {
         currency: formData.currency,
         amount,
         allocatedAmount: totalAllocated,
-        remainingAmount: amount - totalAllocated,
+        remainingAmount: toFixed2(amount - totalAllocated),
         amountInJPY,
         foreignBankCharge,
         localBankCharge,
@@ -312,17 +311,18 @@ export default function Payments() {
         if (!invoiceSnap.exists()) continue;
 
         const invoice = invoiceSnap.data() as Invoice;
-        const newAmountPaid = +(
+        const newAmountPaid = toFixed2(
           invoice.amountPaid + alloc.allocatedAmount
-        ).toFixed(2);
-        const newBalance = +(invoice.totalAmount - newAmountPaid).toFixed(2);
+        );
+
+        const newBalance = toFixed2(invoice.totalAmount - newAmountPaid);
         const newStatus = newBalance === 0 ? 'paid' : 'partially_paid';
-        const newforeignBankCharge = +(
+        const newforeignBankCharge = toFixed2(
           invoice.foreignBankCharge + alloc.foreignBankCharge
-        ).toFixed(2);
-        const newlocalBankCharge = +(
+        );
+        const newlocalBankCharge = toFixed2(
           invoice.localBankCharge + alloc.localBankCharge
-        ).toFixed(2);
+        );
 
         batch.update(invoiceRef, {
           amountPaid: newAmountPaid,
@@ -371,15 +371,13 @@ export default function Payments() {
         const currentAmountInJPY = currencyData.amountInJPY || 0;
 
         batch.update(currencyDoc.ref, {
-          amountDue: Math.max(0, currentAmountDue - totalAllocated),
-          amountPaid: +(currentAmountPaid + totalAllocated).toFixed(2),
-          localBankCharge: +(currentlocalBankCharge + localBankCharge).toFixed(
-            2
-          ),
-          foreignBankCharge: +(
+          amountDue: Math.max(0, toFixed2(currentAmountDue - totalAllocated)),
+          amountPaid: toFixed2(currentAmountPaid + totalAllocated),
+          localBankCharge: toFixed2(currentlocalBankCharge + localBankCharge),
+          foreignBankCharge: toFixed2(
             currentforeignBankCharge + foreignBankCharge
-          ).toFixed(2),
-          amountInJPY: +(currentAmountInJPY + amountInJPY).toFixed(2),
+          ),
+          amountInJPY: toFixed2(currentAmountInJPY + amountInJPY),
         });
       }
 
@@ -459,10 +457,10 @@ export default function Payments() {
 
         const invoice = invoiceSnap.data() as Invoice;
 
-        const newAmountPaid = +(
+        const newAmountPaid = toFixed2(
           invoice.amountPaid - alloc.allocatedAmount
-        ).toFixed(2);
-        const newBalance = +(invoice.totalAmount - newAmountPaid).toFixed(2);
+        );
+        const newBalance = toFixed2(invoice.totalAmount - newAmountPaid);
         const newStatus =
           newBalance === 0
             ? 'paid'
@@ -554,6 +552,7 @@ export default function Payments() {
       });
     } finally {
       setIsLoading(false);
+      setIsDeleteDialogOpen(false);
     }
   };
 

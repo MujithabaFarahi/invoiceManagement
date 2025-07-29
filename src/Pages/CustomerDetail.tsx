@@ -65,7 +65,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { getPaginationRange, type Invoice } from '@/Config/types';
+import { type Invoice } from '@/Config/types';
 import { Checkbox } from '@radix-ui/react-checkbox';
 import {
   DropdownMenu,
@@ -79,6 +79,7 @@ import {
 import { toast } from 'sonner';
 import React from 'react';
 import { Spinner } from '@/components/ui/spinner';
+import { getPaginationRange } from '@/lib/utils';
 
 export default function CustomerDetail() {
   const navigate = useNavigate();

@@ -51,7 +51,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { addInvoice, updateInvoice, deleteInvoice } from '@/Config/firestore';
-import { getPaginationRange, type Invoice } from '@/Config/types';
+import { type Invoice } from '@/Config/types';
 import { toast } from 'sonner';
 import {
   type ColumnDef,
@@ -96,6 +96,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '@/Config/firebase';
 import { useNavigate } from 'react-router-dom';
+import { getPaginationRange } from '@/lib/utils';
 
 export default function Invoices() {
   const navigate = useNavigate();

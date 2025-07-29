@@ -24,6 +24,7 @@ import type {
 } from './types';
 import { db } from './firebase';
 import { getCountFromServer } from 'firebase/firestore';
+import { toFixed2 } from '@/lib/utils';
 
 // Customer operations
 export const addCustomer = async (customer: Omit<Customer, 'id'>) => {
@@ -72,7 +73,7 @@ export const addInvoice = async (invoice: Omit<Invoice, 'id'>) => {
     const currencyDoc = currencySnap.docs[0];
     const currentAmountDue = currencyDoc.data().amountDue || 0;
     await updateDoc(currencyDoc.ref, {
-      amountDue: currentAmountDue + invoiceAmount,
+      amountDue: toFixed2(currentAmountDue + invoiceAmount),
     });
   }
 
@@ -193,7 +194,7 @@ export const updateInvoice = async (id: string, data: Partial<Invoice>) => {
   }
 
   const oldInvoice = invoiceSnap.data() as Invoice;
-  const oldAmount = oldInvoice.totalAmount;
+  const oldAmount = toFixed2(oldInvoice.totalAmount);
   const newAmount = data.totalAmount;
   const oldCurrency = oldInvoice.currency;
   const newCurrency = data.currency;
@@ -208,7 +209,7 @@ export const updateInvoice = async (id: string, data: Partial<Invoice>) => {
     const oldCurrencyDoc = oldCurrencySnap.docs[0];
     const currentDue = oldCurrencyDoc.data().amountDue || 0;
     await updateDoc(oldCurrencyDoc.ref, {
-      amountDue: currentDue - oldAmount,
+      amountDue: toFixed2(currentDue - oldAmount),
     });
   }
 
@@ -222,7 +223,7 @@ export const updateInvoice = async (id: string, data: Partial<Invoice>) => {
     const newCurrencyDoc = newCurrencySnap.docs[0];
     const currentDue = newCurrencyDoc.data().amountDue || 0;
     await updateDoc(newCurrencyDoc.ref, {
-      amountDue: currentDue + newAmount,
+      amountDue: toFixed2(currentDue + newAmount),
     });
   }
 
@@ -252,7 +253,7 @@ export const deleteInvoice = async (id: string) => {
     const currencyDoc = currencySnap.docs[0];
     const currentDue = currencyDoc.data().amountDue || 0;
     await updateDoc(currencyDoc.ref, {
-      amountDue: Math.max(0, currentDue - totalAmount),
+      amountDue: Math.max(0, toFixed2(currentDue - totalAmount)),
     });
   }
 
@@ -351,7 +352,7 @@ export const allocatePaymentToInvoices = async (
     const currentAmountDue = customerDoc.data().amountDue || 0;
     const allocatedAmount = amount - remainingAmount;
     batch.update(customerRef, {
-      amountDue: Math.max(0, currentAmountDue - allocatedAmount),
+      amountDue: Math.max(0, toFixed2(currentAmountDue - allocatedAmount)),
     });
   }
 

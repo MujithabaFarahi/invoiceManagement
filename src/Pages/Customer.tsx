@@ -59,7 +59,7 @@ import {
   updateCustomer,
   deleteCustomer,
 } from '@/Config/firestore';
-import { getPaginationRange, type Customer } from '@/Config/types';
+import { type Customer } from '@/Config/types';
 import {
   Select,
   SelectContent,
@@ -96,6 +96,7 @@ import {
 import { fetchInvoices } from '@/redux/features/invoiceSlice';
 import { useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/ui/spinner';
+import { getPaginationRange } from '@/lib/utils';
 
 export default function Customers() {
   const dispatch = useDispatch<AppDispatch>();
