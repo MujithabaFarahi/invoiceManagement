@@ -38,6 +38,7 @@ export interface Currency {
   id: string;
   code: string;
   name: string;
+  totalAmount: number;
   amountDue: number;
   amountPaid: number;
   amountInJPY?: number;

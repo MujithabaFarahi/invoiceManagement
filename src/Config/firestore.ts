@@ -72,8 +72,10 @@ export const addInvoice = async (invoice: Omit<Invoice, 'id'>) => {
   if (!currencySnap.empty) {
     const currencyDoc = currencySnap.docs[0];
     const currentAmountDue = currencyDoc.data().amountDue || 0;
+    const currentTotalAmount = currencyDoc.data().totalAmount || 0;
     await updateDoc(currencyDoc.ref, {
       amountDue: toFixed2(currentAmountDue + invoiceAmount),
+      totalAmount: toFixed2(currentTotalAmount + invoiceAmount),
     });
   }
 

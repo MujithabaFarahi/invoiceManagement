@@ -150,7 +150,7 @@ export default function InvoiceDetails() {
                   rel="noopener noreferrer"
                   className="text-blue-600 underline font-medium"
                 >
-                  View Invoice PDF
+                  View Invoice
                 </a>
               </div>
             )}

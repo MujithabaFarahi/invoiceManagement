@@ -155,6 +155,7 @@ export default function Payments() {
     JPYamount: '',
     localBankCharge: '',
     foreignBankCharge: '',
+    exchangeRate: '',
     currency: 'USD',
     date: new Date(),
   });
@@ -179,7 +180,7 @@ export default function Payments() {
   };
 
   const allocatePaymentToInvoices = (value: string) => {
-    const amount = parseFloat(value) ?? 0;
+    const amount = toFixed2(parseFloat(value) ?? 0);
 
     if (customerInvoices.length === 0) return;
 
@@ -200,7 +201,7 @@ export default function Payments() {
 
       return {
         invoiceId: inv.id,
-        allocatedAmount: alloc,
+        allocatedAmount: toFixed2(alloc),
         balance: inv.balance,
         foreignBankCharge: 0,
         localBankCharge: 0,
@@ -403,6 +404,7 @@ export default function Payments() {
         localBankCharge: '',
         foreignBankCharge: '',
         currency: 'USD',
+        exchangeRate: '',
         date: new Date(),
       });
       dispatch(setSelectedInvoices([]));
@@ -465,7 +467,7 @@ export default function Payments() {
           newBalance === 0
             ? 'paid'
             : newAmountPaid === 0
-            ? 'unpaid'
+            ? 'pending'
             : 'partially_paid';
 
         const newforeignBankCharge = +(
@@ -793,7 +795,7 @@ export default function Payments() {
                   }
                 }}
               >
-                Delete Invoice
+                Delete Payment
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -811,6 +813,7 @@ export default function Payments() {
                   amount: '',
                   JPYamount: '',
                   localBankCharge: '',
+                  exchangeRate: '',
                   foreignBankCharge: '',
                   currency: 'USD',
                   date: new Date(),
@@ -888,6 +891,9 @@ export default function Payments() {
                           setFormData({
                             ...formData,
                             customerId: value,
+                            amount: '',
+                            JPYamount: '',
+                            exchangeRate: '',
                             currency:
                               customers.find((c) => c.id === value)?.currency ||
                               'USD',
@@ -913,9 +919,25 @@ export default function Payments() {
                       <Label htmlFor="currency">Currency</Label>
                       <Select
                         value={formData.currency}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, currency: value })
-                        }
+                        onValueChange={(value) => {
+                          if (value === 'JPY') {
+                            setFormData({
+                              ...formData,
+                              currency: value,
+                              exchangeRate: '1',
+                              JPYamount: '',
+                              amount: '',
+                            });
+                          } else {
+                            setFormData({
+                              ...formData,
+                              currency: value,
+                              exchangeRate: '',
+                              JPYamount: '',
+                              amount: '',
+                            });
+                          }
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -955,6 +977,7 @@ export default function Payments() {
                     type="number"
                     step="0.01"
                     value={formData.amount}
+                    disabled={!formData.customerId}
                     min="0"
                     max={getTotalDue()}
                     onChange={(e) => {
@@ -971,6 +994,7 @@ export default function Payments() {
                           ...formData,
                           JPYamount: e.target.value,
                           amount: e.target.value,
+                          exchangeRate: '1',
                         });
                       } else {
                         setFormData({ ...formData, amount: e.target.value });
@@ -989,19 +1013,41 @@ export default function Payments() {
                     <p className="text-red-500">{errorMessage}</p>
                   )}
                 </div>
-                <div className="grid gap-2 w-full">
-                  <Label htmlFor="JPYamount">Recieved In JPY*</Label>
-                  <Input
-                    id="JPYamount"
-                    type="number"
-                    step="0.01"
-                    value={formData.JPYamount}
-                    onChange={(e) =>
-                      setFormData({ ...formData, JPYamount: e.target.value })
-                    }
-                    placeholder="0.00"
-                    required
-                  />
+                <div className="grid gap-4 md:grid-cols-2 w-full">
+                  <div className="grid gap-2 w-full">
+                    <Label htmlFor="exchangeRate">Exchange Rate*</Label>
+                    <Input
+                      id="exchangeRate"
+                      type="number"
+                      step="0.01"
+                      disabled={!formData.amount}
+                      value={formData.exchangeRate}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        setFormData({
+                          ...formData,
+                          exchangeRate: e.target.value,
+                          JPYamount: Math.floor(
+                            value ? parseFloat(formData.amount) * value : 0
+                          ).toString(),
+                        });
+                      }}
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2 w-full">
+                    <Label htmlFor="JPYamount">Recieved In JPY*</Label>
+                    <Input
+                      id="JPYamount"
+                      type="number"
+                      readOnly
+                      disabled={!formData.amount}
+                      value={formData.JPYamount}
+                      placeholder="0"
+                      required
+                    />
+                  </div>
                 </div>
                 <div className="grid md:grid-cols-2 gap-4 w-full">
                   <div className="grid gap-2 w-full">
