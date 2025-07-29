@@ -165,7 +165,8 @@ export default function Payments() {
   }, [formData.customerId, formData.currency, dispatch]);
 
   const getTotalDue = () => {
-    return customerInvoices.reduce((sum, inv) => sum + inv.balance, 0);
+    const total = customerInvoices.reduce((sum, inv) => sum + inv.balance, 0);
+    return total;
   };
 
   const allocatePaymentToInvoices = (value: string) => {
