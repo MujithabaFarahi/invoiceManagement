@@ -186,7 +186,7 @@ export default function Payments() {
     lbc: string
   ) => {
     const amount = toFixed2(value ?? 0);
-    const exchangeRate = toFixed2(rate || '1');
+    const exchangeRate = toFixed2(rate || '0');
     const foreignBankCharge = toFixed2(fbc || '0');
     const localBankCharge = toFixed2(lbc || '0');
 
@@ -303,8 +303,6 @@ export default function Payments() {
       return;
     }
 
-    console.log(`totalJPY: ${totalJPY}, amountInJPY: ${amountInJPY}`);
-
     // 1. Check each allocation ≤ invoice balance
     const hasOverAllocated = nonZeroAllocations.some(
       (inv) => inv.allocatedAmount > inv.balance
@@ -344,8 +342,6 @@ export default function Payments() {
       };
 
       const paymentId = await addPayment(paymentData);
-
-      console.log(nonZeroAllocations);
 
       // 2. Allocate to Invoices
       const batch = writeBatch(db);

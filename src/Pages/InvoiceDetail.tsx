@@ -29,7 +29,6 @@ export default function InvoiceDetails() {
       try {
         const data = await getPaymentAllocationsByInvoiceId(invoiceId);
         const invoice = await getInvoiceById(invoiceId);
-        console.log(invoice);
         setInvoice(invoice);
         setAllocations(data);
       } catch (err) {
