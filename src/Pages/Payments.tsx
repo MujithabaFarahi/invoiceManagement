@@ -182,11 +182,13 @@ export default function Payments() {
   const allocatePaymentToInvoices = (
     value: string,
     rate: string,
-    fcb: string
+    fbc: string,
+    lbc: string
   ) => {
     const amount = toFixed2(value ?? 0);
     const exchangeRate = toFixed2(rate || '1');
-    const foreignBankCharge = toFixed2(fcb || '0');
+    const foreignBankCharge = toFixed2(fbc || '0');
+    const localBankCharge = toFixed2(lbc || '0');
 
     if (customerInvoices.length === 0 || isNaN(exchangeRate)) return;
 
@@ -219,16 +221,19 @@ export default function Payments() {
         allocatedAmount: alloc,
         balance: inv.balance,
         foreignBankCharge: index === 0 ? foreignBankCharge : 0,
-        localBankCharge:
-          index === 0 ? toFixed2(formData.localBankCharge || '0') : 0,
+        localBankCharge: index === 0 ? localBankCharge : 0,
         recievedJPY,
       };
     });
 
-    const totalFormJPY = Math.floor(
-      (amount - foreignBankCharge) * exchangeRate
-    );
+    const totalFormJPY =
+      Math.floor((amount - foreignBankCharge) * exchangeRate) - localBankCharge;
     const diff = totalFormJPY - totalJPY;
+
+    setFormData((prev) => ({
+      ...prev,
+      JPYamount: totalFormJPY.toString(),
+    }));
 
     if (allocations.length > 0) {
       allocations[0].recievedJPY += diff; // Adjust for rounding error
@@ -280,12 +285,25 @@ export default function Payments() {
     const totalAllocated = toFixed2(
       nonZeroAllocations.reduce((sum, i) => sum + i.allocatedAmount, 0)
     );
+    const totalJPY = toFixed2(
+      nonZeroAllocations.reduce((sum, i) => sum + i.recievedJPY, 0)
+    );
+
     if (totalAllocated > amount) {
       toast.error('Error', {
         description: 'Allocated amount exceeds payment amount',
       });
       return;
     }
+
+    if (totalJPY > amountInJPY) {
+      toast.error('Error', {
+        description: 'Allocated JPY amount exceeds payment amount',
+      });
+      return;
+    }
+
+    console.log(`totalJPY: ${totalJPY}, amountInJPY: ${amountInJPY}`);
 
     // 1. Check each allocation ≤ invoice balance
     const hasOverAllocated = nonZeroAllocations.some(
@@ -327,6 +345,8 @@ export default function Payments() {
 
       const paymentId = await addPayment(paymentData);
 
+      console.log(nonZeroAllocations);
+
       // 2. Allocate to Invoices
       const batch = writeBatch(db);
       for (const alloc of nonZeroAllocations) {
@@ -338,7 +358,6 @@ export default function Payments() {
         const newAmountPaid = toFixed2(
           invoice.amountPaid + alloc.allocatedAmount
         );
-
         const newBalance = toFixed2(invoice.totalAmount - newAmountPaid);
         const newStatus = newBalance === 0 ? 'paid' : 'partially_paid';
         const newforeignBankCharge = toFixed2(
@@ -1033,19 +1052,12 @@ export default function Payments() {
                         setFormData({ ...formData, amount: e.target.value });
                       }
 
-                      if (e.target.value) {
-                        allocatePaymentToInvoices(
-                          e.target.value,
-                          formData.exchangeRate,
-                          formData.foreignBankCharge
-                        );
-                      } else {
-                        allocatePaymentToInvoices(
-                          '0',
-                          formData.exchangeRate,
-                          formData.foreignBankCharge
-                        );
-                      }
+                      allocatePaymentToInvoices(
+                        e.target.value || '0',
+                        formData.exchangeRate,
+                        formData.foreignBankCharge,
+                        formData.localBankCharge
+                      );
                     }}
                     placeholder="0.00"
                     required
@@ -1073,19 +1085,12 @@ export default function Payments() {
                           ).toString(),
                         });
 
-                        if (e.target.value) {
-                          allocatePaymentToInvoices(
-                            formData.amount || '0',
-                            e.target.value,
-                            formData.foreignBankCharge
-                          );
-                        } else {
-                          allocatePaymentToInvoices(
-                            formData.amount || '0',
-                            '',
-                            formData.foreignBankCharge
-                          );
-                        }
+                        allocatePaymentToInvoices(
+                          formData.amount,
+                          e.target.value,
+                          formData.foreignBankCharge,
+                          formData.localBankCharge
+                        );
                       }}
                       placeholder="0.00"
                       required
@@ -1122,7 +1127,8 @@ export default function Payments() {
                         allocatePaymentToInvoices(
                           formData.amount || '0',
                           formData.exchangeRate,
-                          e.target.value
+                          e.target.value,
+                          formData.localBankCharge
                         );
                       }}
                       placeholder="0.00"
@@ -1135,12 +1141,18 @@ export default function Payments() {
                       type="number"
                       step="0.01"
                       value={formData.localBankCharge}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setFormData({
                           ...formData,
                           localBankCharge: e.target.value,
-                        })
-                      }
+                        });
+                        allocatePaymentToInvoices(
+                          formData.amount || '0',
+                          formData.exchangeRate,
+                          formData.foreignBankCharge,
+                          e.target.value
+                        );
+                      }}
                       placeholder="0.00"
                     />
                   </div>
@@ -1159,15 +1171,13 @@ export default function Payments() {
                         >
                           <span className="flex-1">
                             {/* Invoice No: */}
-                            <span className="font-semibold">
-                              {' '}
-                              {invoice?.invoiceNo}{' '}
+                            <span> {invoice?.invoiceNo} </span>:{' '}
+                            <span className=" text-muted-foreground">
+                              {new Intl.NumberFormat('ja-JP', {
+                                style: 'currency',
+                                currency: invoice?.currency || 'JPY',
+                              }).format(invoice?.balance || 0)}{' '}
                             </span>
-                            :{' '}
-                            {new Intl.NumberFormat('ja-JP', {
-                              style: 'currency',
-                              currency: invoice?.currency || 'JPY',
-                            }).format(invoice?.balance || 0)}{' '}
                           </span>
                           {/* <Input
                             type="number"
