@@ -112,7 +112,7 @@ export default function InvoiceDetails() {
             <div>
               <p className="text-sm text-muted-foreground">Recieved in JPY</p>
               <p className="font-medium">
-                {invoice.recievedJPY.toLocaleString()} JPY
+                {(invoice.recievedJPY || 0).toLocaleString()} JPY
               </p>
             </div>
             <div>

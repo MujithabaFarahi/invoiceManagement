@@ -103,22 +103,22 @@ export default function Dashboard() {
     if (!exchangeRates || currencies.length === 0) return;
 
     let pending = 0;
-    let recieved = 0;
+    let received = 0;
 
     currencies.forEach((currency) => {
       if (currency.code === 'JPY') {
         pending += currency.amountDue || 0;
-        recieved += currency.amountInJPY || 0;
+        received += currency.amountInJPY || 0;
       } else if (exchangeRates[currency.code]) {
         pending += (currency.amountDue || 0) * exchangeRates[currency.code];
-        recieved += currency.amountInJPY || 0;
+        received += currency.amountInJPY || 0;
       } else {
         console.warn(`No exchange rate found for ${currency.code}`);
       }
     });
 
     setTotalPendingInJPY(pending);
-    setTotalReceivedInJPY(recieved);
+    setTotalReceivedInJPY(received);
   }, [exchangeRates, currencies]);
 
   return (
