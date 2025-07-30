@@ -5,7 +5,6 @@ export interface Customer {
   phone?: string;
   address?: string;
   amountInJPY?: number;
-  recievedJPY: number;
   currency: string;
   createdAt: Date;
 }
