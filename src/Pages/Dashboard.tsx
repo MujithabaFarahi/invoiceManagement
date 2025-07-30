@@ -23,6 +23,7 @@ import {
 } from '@/redux/features/paymentSlice';
 import { Spinner } from '@/components/ui/spinner';
 import { useNavigate } from 'react-router-dom';
+import { toFixed2 } from '@/lib/utils';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -77,8 +78,8 @@ export default function Dashboard() {
       const data = await res.json();
 
       const rates: Record<string, number> = {
-        USD: parseFloat(data.save_us_ttb),
-        EUR: parseFloat(data.save_euro_ttb),
+        USD: toFixed2(data.save_us_ttb),
+        EUR: toFixed2(data.save_euro_ttb),
       };
 
       dispatch(setExchangeRates(rates));

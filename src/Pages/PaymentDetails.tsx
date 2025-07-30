@@ -8,7 +8,7 @@ import { getPaymentAllocations, getPaymentById } from '@/Config/firestore';
 import type { Payment, PaymentAllocation } from '@/Config/types';
 import { ArrowLeft } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
 
 export default function PaymentDetails() {
   const navigate = useNavigate();
@@ -96,51 +96,62 @@ export default function PaymentDetails() {
                   {payment.currency}
                 </p>
               </div>
-
-              <div className="">
-                <h2 className="text-lg font-semibold mb-2">Allocations</h2>
-                {allocations.length === 0 ? (
-                  <p className="text-muted-foreground">No allocations found.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {allocations.map((allocation) => (
-                      <div
-                        key={allocation.id}
-                        className="border p-4 rounded-md shadow-sm"
-                      >
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">
-                            Invoice No: {allocation.invoiceNo ?? 'N/A'}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            Invoice ID: {allocation.invoiceId}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-1 gap-4">
-                          <div>
-                            <Label
-                              htmlFor={`alloc-${allocation.id}`}
-                              className="text-sm"
-                            >
-                              Allocated Amount
-                            </Label>
-                            <Input
-                              id={`alloc-${allocation.id}`}
-                              // type="number"
-                              // step="0.01"
-                              value={`${allocation.allocatedAmount} ${payment.currency}`}
-                              readOnly
-                              className="mt-1"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardContent>
+          <CardTitle className="text-lg font-semibold mb-4">
+            Allocations
+          </CardTitle>
+          <div>
+            {allocations.length === 0 ? (
+              <p className="text-muted-foreground">No allocations found.</p>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-4">
+                {allocations.map((allocation) => (
+                  <div
+                    key={allocation.id}
+                    className="border p-4 rounded-md shadow-sm"
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium">
+                        Invoice No: {allocation.invoiceNo ?? 'N/A'}
+                      </span>
+                      <span
+                        onClick={() => {
+                          navigate(`/invoices/${allocation.invoiceId}`);
+                        }}
+                        className="text-xs text-muted-foreground hover:scale-105 cursor-pointer"
+                      >
+                        Invoice ID: {allocation.invoiceId}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <Label
+                          htmlFor={`alloc-${allocation.id}`}
+                          className="text-sm"
+                        >
+                          Allocated Amount
+                        </Label>
+                        <Input
+                          id={`alloc-${allocation.id}`}
+                          // type="number"
+                          // step="0.01"
+                          value={`${allocation.allocatedAmount} ${payment?.currency}`}
+                          readOnly
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -79,7 +79,7 @@ import {
 import { toast } from 'sonner';
 import React from 'react';
 import { Spinner } from '@/components/ui/spinner';
-import { getPaginationRange } from '@/lib/utils';
+import { getPaginationRange, toFixed2 } from '@/lib/utils';
 
 export default function CustomerDetail() {
   const navigate = useNavigate();
@@ -271,7 +271,7 @@ export default function CustomerDetail() {
         );
       },
       cell: ({ row }) => {
-        const amount = parseFloat(row.getValue('totalAmount'));
+        const amount = toFixed2(row.getValue('totalAmount'));
         // Format the amount as a dollar amount
         const formatted = new Intl.NumberFormat('en-US', {
           style: 'currency',
@@ -284,7 +284,7 @@ export default function CustomerDetail() {
       accessorKey: 'amountPaid',
       header: 'Paid',
       cell: ({ row }) => {
-        const amount = parseFloat(row.getValue('amountPaid'));
+        const amount = toFixed2(row.getValue('amountPaid'));
         // Format the amount as a dollar amount
         const formatted = new Intl.NumberFormat('en-US', {
           style: 'currency',
@@ -297,7 +297,7 @@ export default function CustomerDetail() {
       accessorKey: 'balance',
       header: () => <div>Balance</div>,
       cell: ({ row }) => {
-        const amount = parseFloat(row.getValue('balance'));
+        const amount = toFixed2(row.getValue('balance'));
         // Format the amount as a dollar amount
         const formatted = new Intl.NumberFormat('en-US', {
           style: 'currency',

@@ -5,6 +5,7 @@ export interface Customer {
   phone?: string;
   address?: string;
   amountInJPY?: number;
+  recievedJPY: number;
   currency: string;
   createdAt: Date;
 }
@@ -16,6 +17,7 @@ export interface Invoice {
   customerName: string;
   totalAmount: number;
   amountPaid: number;
+  recievedJPY: number;
   currency: string;
   invoiceLink?: string;
   balance: number;
@@ -26,14 +28,6 @@ export interface Invoice {
   createdAt: Date;
 }
 
-export interface SelectedInvoice {
-  invoiceId: string;
-  allocatedAmount: number;
-  balance: number;
-  foreignBankCharge: number;
-  localBankCharge: number;
-}
-
 export interface Currency {
   id: string;
   code: string;
@@ -41,7 +35,7 @@ export interface Currency {
   totalAmount: number;
   amountDue: number;
   amountPaid: number;
-  amountInJPY?: number;
+  amountInJPY: number;
   foreignBankCharge: number;
   localBankCharge: number;
 }
@@ -55,7 +49,6 @@ export interface Payment {
   currency: string;
   amount: number;
   allocatedAmount: number;
-  remainingAmount: number;
   amountInJPY: number;
   foreignBankCharge: number;
   localBankCharge: number;
@@ -70,5 +63,15 @@ export interface PaymentAllocation {
   allocatedAmount: number;
   foreignBankCharge: number;
   localBankCharge: number;
+  recievedJPY: number;
   createdAt: Date;
+}
+
+export interface SelectedInvoice {
+  invoiceId: string;
+  allocatedAmount: number;
+  balance: number;
+  foreignBankCharge: number;
+  localBankCharge: number;
+  recievedJPY: number;
 }

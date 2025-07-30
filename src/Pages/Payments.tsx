@@ -179,13 +179,21 @@ export default function Payments() {
     return toFixed2(total);
   };
 
-  const allocatePaymentToInvoices = (value: string) => {
-    const amount = toFixed2(parseFloat(value) ?? 0);
+  const allocatePaymentToInvoices = (
+    value: string,
+    rate: string,
+    fcb: string
+  ) => {
+    const amount = toFixed2(value ?? 0);
+    const exchangeRate = toFixed2(rate || '1');
+    const foreignBankCharge = toFixed2(fcb || '0');
 
-    if (customerInvoices.length === 0) return;
+    if (customerInvoices.length === 0 || isNaN(exchangeRate)) return;
 
     let remaining = amount;
-    const allocations = customerInvoices.map((inv) => {
+    let totalJPY = 0;
+
+    const allocations = customerInvoices.map((inv, index) => {
       if (remaining <= 0) {
         return {
           invoiceId: inv.id,
@@ -193,20 +201,38 @@ export default function Payments() {
           balance: inv.balance,
           foreignBankCharge: 0,
           localBankCharge: 0,
+          recievedJPY: 0,
         };
       }
 
-      const alloc = Math.min(remaining, inv.balance);
-      remaining -= alloc;
+      const alloc = toFixed2(Math.min(remaining, inv.balance));
+      remaining = toFixed2(remaining - alloc);
+
+      let adjustedAlloc = alloc;
+      if (index === 0) adjustedAlloc = toFixed2(alloc - foreignBankCharge);
+
+      const recievedJPY = Math.floor(adjustedAlloc * exchangeRate);
+      totalJPY += recievedJPY;
 
       return {
         invoiceId: inv.id,
-        allocatedAmount: toFixed2(alloc),
+        allocatedAmount: alloc,
         balance: inv.balance,
-        foreignBankCharge: 0,
-        localBankCharge: 0,
+        foreignBankCharge: index === 0 ? foreignBankCharge : 0,
+        localBankCharge:
+          index === 0 ? toFixed2(formData.localBankCharge || '0') : 0,
+        recievedJPY,
       };
     });
+
+    const totalFormJPY = Math.floor(
+      (amount - foreignBankCharge) * exchangeRate
+    );
+    const diff = totalFormJPY - totalJPY;
+
+    if (allocations.length > 0) {
+      allocations[0].recievedJPY += diff; // Adjust for rounding error
+    }
 
     dispatch(setSelectedInvoices(allocations));
   };
@@ -240,19 +266,17 @@ export default function Payments() {
       return;
     }
 
-    const localBankCharge = parseFloat(formData.localBankCharge) || 0;
-    const foreignBankCharge = parseFloat(formData.foreignBankCharge) || 0;
+    const localBankCharge = toFixed2(formData.localBankCharge) || 0;
+    const foreignBankCharge = toFixed2(formData.foreignBankCharge) || 0;
 
     const nonZeroAllocations = selectedInvoices
       .filter((i) => i.allocatedAmount > 0)
-      .map((invoice, index) => ({
+      .map((invoice) => ({
         ...invoice,
-        foreignBankCharge: index === 0 ? foreignBankCharge : 0,
-        localBankCharge: index === 0 ? localBankCharge : 0,
       }));
 
-    const amount = Number.parseFloat(formData.amount);
-    const amountInJPY = Number.parseFloat(formData.JPYamount);
+    const amount = toFixed2(formData.amount);
+    const amountInJPY = toFixed2(formData.JPYamount);
     const totalAllocated = toFixed2(
       nonZeroAllocations.reduce((sum, i) => sum + i.allocatedAmount, 0)
     );
@@ -295,7 +319,6 @@ export default function Payments() {
         currency: formData.currency,
         amount,
         allocatedAmount: totalAllocated,
-        remainingAmount: toFixed2(amount - totalAllocated),
         amountInJPY,
         foreignBankCharge,
         localBankCharge,
@@ -324,6 +347,9 @@ export default function Payments() {
         const newlocalBankCharge = toFixed2(
           invoice.localBankCharge + alloc.localBankCharge
         );
+        const newRecievedJPY = toFixed2(
+          (invoice.recievedJPY || 0) + alloc.recievedJPY
+        );
 
         batch.update(invoiceRef, {
           amountPaid: newAmountPaid,
@@ -331,6 +357,7 @@ export default function Payments() {
           status: newStatus,
           foreignBankCharge: newforeignBankCharge,
           localBankCharge: newlocalBankCharge,
+          recievedJPY: newRecievedJPY,
         });
 
         // Set bank payment values only for the first allocation
@@ -343,6 +370,7 @@ export default function Payments() {
           createdAt: new Date(),
           localBankCharge: alloc.localBankCharge,
           foreignBankCharge: alloc.foreignBankCharge,
+          recievedJPY: alloc.recievedJPY,
         });
       }
 
@@ -352,7 +380,7 @@ export default function Payments() {
       if (customerSnap.exists()) {
         const currentAmount = customerSnap.data().amountInJPY || 0;
         batch.update(customerRef, {
-          amountInJPY: +(currentAmount + amountInJPY).toFixed(2),
+          amountInJPY: toFixed2(currentAmount + amountInJPY),
         });
       }
 
@@ -470,13 +498,17 @@ export default function Payments() {
             ? 'pending'
             : 'partially_paid';
 
-        const newforeignBankCharge = +(
+        const newforeignBankCharge = toFixed2(
           invoice.foreignBankCharge - (alloc.foreignBankCharge || 0)
-        ).toFixed(2);
+        );
 
-        const newlocalBankCharge = +(
+        const newlocalBankCharge = toFixed2(
           invoice.localBankCharge - (alloc.localBankCharge || 0)
-        ).toFixed(2);
+        );
+
+        const newRecievedJPY = toFixed2(
+          (invoice.recievedJPY || 0) - (alloc.recievedJPY || 0)
+        );
 
         batch.update(invoiceRef, {
           amountPaid: Math.max(0, newAmountPaid),
@@ -484,6 +516,7 @@ export default function Payments() {
           status: newStatus,
           foreignBankCharge: newforeignBankCharge,
           localBankCharge: newlocalBankCharge,
+          recievedJPY: newRecievedJPY,
         });
 
         // Delete allocation
@@ -515,21 +548,21 @@ export default function Payments() {
         const currencyDoc = currencySnap.docs[0];
         const currencyData = currencyDoc.data();
 
-        const updatedAmountPaid = +(
+        const updatedAmountPaid = toFixed2(
           currencyData.amountPaid - paymentData.allocatedAmount
-        ).toFixed(2);
-        const updatedAmountDue = +(
+        );
+        const updatedAmountDue = toFixed2(
           currencyData.amountDue + paymentData.allocatedAmount
-        ).toFixed(2);
-        const updatedLocalCharge = +(
+        );
+        const updatedLocalCharge = toFixed2(
           currencyData.localBankCharge - (paymentData.localBankCharge || 0)
-        ).toFixed(2);
-        const updatedForeignCharge = +(
+        );
+        const updatedForeignCharge = toFixed2(
           currencyData.foreignBankCharge - (paymentData.foreignBankCharge || 0)
-        ).toFixed(2);
-        const updatedJPY = +(
+        );
+        const updatedJPY = toFixed2(
           currencyData.amountInJPY - (paymentData.amountInJPY || 0)
-        ).toFixed(2);
+        );
 
         batch.update(currencyDoc.ref, {
           amountPaid: updatedAmountPaid,
@@ -652,7 +685,7 @@ export default function Payments() {
         );
       },
       cell: ({ row }) => {
-        const amount = parseFloat(row.getValue('amount'));
+        const amount = toFixed2(row.getValue('amount'));
         // Format the amount as a dollar amount
         const formatted = new Intl.NumberFormat('en-US', {
           style: 'currency',
@@ -1001,9 +1034,17 @@ export default function Payments() {
                       }
 
                       if (e.target.value) {
-                        allocatePaymentToInvoices(e.target.value);
+                        allocatePaymentToInvoices(
+                          e.target.value,
+                          formData.exchangeRate,
+                          formData.foreignBankCharge
+                        );
                       } else {
-                        allocatePaymentToInvoices('0');
+                        allocatePaymentToInvoices(
+                          '0',
+                          formData.exchangeRate,
+                          formData.foreignBankCharge
+                        );
                       }
                     }}
                     placeholder="0.00"
@@ -1031,13 +1072,27 @@ export default function Payments() {
                             value ? parseFloat(formData.amount) * value : 0
                           ).toString(),
                         });
+
+                        if (e.target.value) {
+                          allocatePaymentToInvoices(
+                            formData.amount || '0',
+                            e.target.value,
+                            formData.foreignBankCharge
+                          );
+                        } else {
+                          allocatePaymentToInvoices(
+                            formData.amount || '0',
+                            '',
+                            formData.foreignBankCharge
+                          );
+                        }
                       }}
                       placeholder="0.00"
                       required
                     />
                   </div>
                   <div className="grid gap-2 w-full">
-                    <Label htmlFor="JPYamount">Recieved In JPY*</Label>
+                    <Label htmlFor="JPYamount">Amount In JPY*</Label>
                     <Input
                       id="JPYamount"
                       type="number"
@@ -1059,12 +1114,17 @@ export default function Payments() {
                       type="number"
                       step="0.01"
                       value={formData.foreignBankCharge}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setFormData({
                           ...formData,
                           foreignBankCharge: e.target.value,
-                        })
-                      }
+                        });
+                        allocatePaymentToInvoices(
+                          formData.amount || '0',
+                          formData.exchangeRate,
+                          e.target.value
+                        );
+                      }}
                       placeholder="0.00"
                     />
                   </div>
@@ -1093,23 +1153,45 @@ export default function Payments() {
                         (inv) => inv.id === item.invoiceId
                       );
                       return (
-                        <div key={index} className="flex items-center gap-2">
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 my-1"
+                        >
                           <span className="flex-1">
-                            Invoice No:
+                            {/* Invoice No: */}
                             <span className="font-semibold">
                               {' '}
                               {invoice?.invoiceNo}{' '}
                             </span>
-                            ({invoice?.currency} {invoice?.balance})
+                            :{' '}
+                            {new Intl.NumberFormat('ja-JP', {
+                              style: 'currency',
+                              currency: invoice?.currency || 'JPY',
+                            }).format(invoice?.balance || 0)}{' '}
                           </span>
-                          <Input
+                          {/* <Input
                             type="number"
                             step="0.01"
                             readOnly
                             value={item.allocatedAmount}
                             placeholder="0.00"
                             className="w-32 bg-muted text-center  border border-muted-foreground"
-                          />
+                          /> */}
+                          <div className="grid gap-2 grid-cols-2">
+                            <p className="bg-muted p-1 rounded-md border border-muted-foreground min-w-24 flex justify-center">
+                              {new Intl.NumberFormat('ja-JP', {
+                                style: 'currency',
+                                currency: invoice?.currency || 'JPY',
+                              }).format(item.allocatedAmount)}{' '}
+                            </p>
+
+                            <p className="bg-muted p-1 rounded-md min-w-24 flex justify-center">
+                              {new Intl.NumberFormat('ja-JP', {
+                                style: 'currency',
+                                currency: 'JPY',
+                              }).format(item.recievedJPY)}{' '}
+                            </p>
+                          </div>
                         </div>
                       );
                     })}

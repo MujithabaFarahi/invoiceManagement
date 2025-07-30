@@ -155,6 +155,7 @@ const invoiceSlice = createSlice({
           balance: inv.balance,
           foreignBankCharge: 0,
           localBankCharge: 0,
+          recievedJPY: 0,
         }));
       })
       .addCase(fetchCustomerInvoices.rejected, (state, action) => {

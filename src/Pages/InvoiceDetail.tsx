@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -29,6 +29,7 @@ export default function InvoiceDetails() {
       try {
         const data = await getPaymentAllocationsByInvoiceId(invoiceId);
         const invoice = await getInvoiceById(invoiceId);
+        console.log(invoice);
         setInvoice(invoice);
         setAllocations(data);
       } catch (err) {
@@ -108,7 +109,12 @@ export default function InvoiceDetails() {
                 {invoice.totalAmount.toLocaleString()} {invoice.currency}
               </p>
             </div>
-
+            <div>
+              <p className="text-sm text-muted-foreground">Recieved in JPY</p>
+              <p className="font-medium">
+                {invoice.recievedJPY.toLocaleString()} JPY
+              </p>
+            </div>
             <div>
               <p className="text-sm text-muted-foreground">Amount Paid</p>
               <p className="font-medium">
@@ -154,42 +160,47 @@ export default function InvoiceDetails() {
                 </a>
               </div>
             )}
-
-            <div className="col-span-2">
-              <h2 className="text-lg font-semibold mb-2">Allocations</h2>
-              {allocations.length === 0 ? (
-                <p className="text-muted-foreground">No allocations found.</p>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {allocations.map((allocation) => (
-                    <div
-                      key={allocation.id}
-                      className="border p-4 rounded-md shadow-sm"
-                    >
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm text-muted-foreground">
-                          Payment ID: {allocation.paymentId}
-                        </span>
-                      </div>
-                      <div>
-                        <Label
-                          htmlFor={`alloc-${allocation.id}`}
-                          className="text-sm"
-                        >
-                          Allocated Amount
-                        </Label>
-                        <Input
-                          id={`alloc-${allocation.id}`}
-                          value={`${allocation.allocatedAmount} ${invoice.currency}`}
-                          readOnly
-                          className="mt-1"
-                        />
-                      </div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card className="mt-6">
+        <CardContent>
+          <CardTitle className="text-lg font-semibold mb-4">
+            Allocations
+          </CardTitle>
+          <div>
+            {allocations.length === 0 ? (
+              <p className="text-muted-foreground">No allocations found.</p>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {allocations.map((allocation) => (
+                  <div
+                    key={allocation.id}
+                    className="border p-4 rounded-md shadow-sm"
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-muted-foreground">
+                        Payment ID: {allocation.paymentId}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    <div>
+                      <Label
+                        htmlFor={`alloc-${allocation.id}`}
+                        className="text-sm"
+                      >
+                        Allocated Amount
+                      </Label>
+                      <Input
+                        id={`alloc-${allocation.id}`}
+                        value={`${allocation.allocatedAmount} ${invoice.currency}`}
+                        readOnly
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
