@@ -422,8 +422,8 @@ export default function Customers() {
   }, [selectedCurrencies, table]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+    <div className="h-screen flex flex-col gap-6 py-6 md:py-8">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 px-6 md:px-8">
         <div>
           <h1 className="text-3xl font-bold">Customers</h1>
           <p className="text-muted-foreground">Manage your customer database</p>
@@ -583,237 +583,241 @@ export default function Customers() {
         </Dialog>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Customer List</CardTitle>
-          <CardDescription>
-            All registered customers and their outstanding amounts
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row items-end py-4 gap-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full md:w-auto">
-              <Input
-                placeholder="Filter customers..."
-                value={
-                  (table.getColumn('name')?.getFilterValue() as string) ?? ''
-                }
-                onChange={(event) =>
-                  table.getColumn('name')?.setFilterValue(event.target.value)
-                }
-                className="max-w-sm"
-              />
+      <div className="flex-1 overflow-y-auto px-6 md:px-8 space-y-6 ">
+        <Card>
+          <CardHeader>
+            <CardTitle>Customer List</CardTitle>
+            <CardDescription>
+              All registered customers and their outstanding amounts
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row items-end py-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full md:w-auto">
+                <Input
+                  placeholder="Filter customers..."
+                  value={
+                    (table.getColumn('name')?.getFilterValue() as string) ?? ''
+                  }
+                  onChange={(event) =>
+                    table.getColumn('name')?.setFilterValue(event.target.value)
+                  }
+                  className="max-w-sm"
+                />
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      Currency <ChevronDown />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {currencies.map((currency) => (
+                      <DropdownMenuCheckboxItem
+                        key={currency.code}
+                        checked={selectedCurrencies.includes(currency.code)}
+                        onSelect={(e) => e.preventDefault()}
+                        onCheckedChange={(checked) => {
+                          setSelectedCurrencies((prev) =>
+                            checked
+                              ? [...prev, currency.code]
+                              : prev.filter((c) => c !== currency.code)
+                          );
+                        }}
+                        className="capitalize"
+                      >
+                        {currency.code}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button
+                  onClick={() => {
+                    setSelectedCustomers([]);
+                    setSelectedCurrencies([]);
+                    table.resetColumnFilters();
+                  }}
+                >
+                  <FilterX className="" />
+                  Reset Filters
+                </Button>
+              </div>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    Currency <ChevronDown />
+                  <Button variant="outline" className="ml-auto">
+                    Columns <ChevronDown />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {currencies.map((currency) => (
-                    <DropdownMenuCheckboxItem
-                      key={currency.code}
-                      checked={selectedCurrencies.includes(currency.code)}
-                      onSelect={(e) => e.preventDefault()}
-                      onCheckedChange={(checked) => {
-                        setSelectedCurrencies((prev) =>
-                          checked
-                            ? [...prev, currency.code]
-                            : prev.filter((c) => c !== currency.code)
-                        );
-                      }}
-                      className="capitalize"
-                    >
-                      {currency.code}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Button
-                onClick={() => {
-                  setSelectedCustomers([]);
-                  setSelectedCurrencies([]);
-                  table.resetColumnFilters();
-                }}
-              >
-                <FilterX className="" />
-                Reset Filters
-              </Button>
-            </div>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="ml-auto">
-                  Columns <ChevronDown />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {table
-                  .getAllColumns()
-                  .filter((column) => column.getCanHide())
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) =>
-                          column.toggleVisibility(!!value)
-                        }
-                      >
-                        {column.id}
-                      </DropdownMenuCheckboxItem>
-                    );
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
+                  {table
+                    .getAllColumns()
+                    .filter((column) => column.getCanHide())
+                    .map((column) => {
                       return (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
+                        <DropdownMenuCheckboxItem
+                          key={column.id}
+                          className="capitalize"
+                          checked={column.getIsVisible()}
+                          onCheckedChange={(value) =>
+                            column.toggleVisibility(!!value)
+                          }
+                        >
+                          {column.id}
+                        </DropdownMenuCheckboxItem>
                       );
                     })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      onClick={() => navigate(`/customers/${row.original.id}`)}
-                      className="cursor-pointer"
-                      key={row.id}
-                      data-state={row.getIsSelected() && 'selected'}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => {
+                        return (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
+                        );
+                      })}
                     </TableRow>
-                  ))
-                ) : loading ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      <Spinner />
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      No Invoices Found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <div className="flex flex-col justify-between gap-4 w-full md:flex-row">
-            <div className="flex items-center gap-2 justify-center">
-              <p className="text-sm text-muted-foreground">
-                Showing{' '}
-                {table.getState().pagination.pageIndex *
-                  table.getState().pagination.pageSize +
-                  1}
-                -
-                {Math.min(
-                  (table.getState().pagination.pageIndex + 1) *
-                    table.getState().pagination.pageSize,
-                  table.getFilteredRowModel().rows.length
-                )}{' '}
-                of {table.getFilteredRowModel().rows.length} customers
-              </p>
-            </div>
-            <Pagination>
-              <PaginationContent>
-                {/* Previous Button */}
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={() => table.previousPage()}
-                    className={
-                      !table.getCanPreviousPage()
-                        ? 'pointer-events-none opacity-50'
-                        : 'cursor-pointer'
-                    }
-                  />
-                </PaginationItem>
-
-                {/* Numbered Pages with Truncation */}
-                {paginationRange.map((item, idx) => (
-                  <PaginationItem key={idx}>
-                    {typeof item === 'string' ? (
-                      <span className="px-2 text-muted-foreground">…</span>
-                    ) : (
-                      <PaginationLink
-                        isActive={item === currentPage}
-                        onClick={() => table.setPageIndex(item - 1)}
-                        className="cursor-pointer"
-                      >
-                        {item}
-                      </PaginationLink>
-                    )}
-                  </PaginationItem>
-                ))}
-
-                {/* Next Button */}
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() => table.nextPage()}
-                    className={
-                      !table.getCanNextPage()
-                        ? 'pointer-events-none opacity-50'
-                        : 'cursor-pointer'
-                    }
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-
-            <div className="flex justify-end ">
-              <Select
-                value={table.getState().pagination.pageSize.toString()}
-                onValueChange={(value) => table.setPageSize(Number(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Rows per page" />
-                </SelectTrigger>
-                <SelectContent>
-                  {[5, 10, 25, 50].map((size) => (
-                    <SelectItem key={size} value={size.toString()}>
-                      {size} per page
-                    </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
+                </TableHeader>
+                <TableBody>
+                  {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow
+                        onClick={() =>
+                          navigate(`/customers/${row.original.id}`)
+                        }
+                        className="cursor-pointer"
+                        key={row.id}
+                        data-state={row.getIsSelected() && 'selected'}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : loading ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="h-24 text-center"
+                      >
+                        <Spinner />
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="h-24 text-center"
+                      >
+                        No Invoices Found
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
-          </div>
-        </CardFooter>
-      </Card>
+          </CardContent>
+          <CardFooter>
+            <div className="flex flex-col justify-between gap-4 w-full md:flex-row">
+              <div className="flex items-center gap-2 justify-center">
+                <p className="text-sm text-muted-foreground">
+                  Showing{' '}
+                  {table.getState().pagination.pageIndex *
+                    table.getState().pagination.pageSize +
+                    1}
+                  -
+                  {Math.min(
+                    (table.getState().pagination.pageIndex + 1) *
+                      table.getState().pagination.pageSize,
+                    table.getFilteredRowModel().rows.length
+                  )}{' '}
+                  of {table.getFilteredRowModel().rows.length} customers
+                </p>
+              </div>
+              <Pagination>
+                <PaginationContent>
+                  {/* Previous Button */}
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => table.previousPage()}
+                      className={
+                        !table.getCanPreviousPage()
+                          ? 'pointer-events-none opacity-50'
+                          : 'cursor-pointer'
+                      }
+                    />
+                  </PaginationItem>
+
+                  {/* Numbered Pages with Truncation */}
+                  {paginationRange.map((item, idx) => (
+                    <PaginationItem key={idx}>
+                      {typeof item === 'string' ? (
+                        <span className="px-2 text-muted-foreground">…</span>
+                      ) : (
+                        <PaginationLink
+                          isActive={item === currentPage}
+                          onClick={() => table.setPageIndex(item - 1)}
+                          className="cursor-pointer"
+                        >
+                          {item}
+                        </PaginationLink>
+                      )}
+                    </PaginationItem>
+                  ))}
+
+                  {/* Next Button */}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => table.nextPage()}
+                      className={
+                        !table.getCanNextPage()
+                          ? 'pointer-events-none opacity-50'
+                          : 'cursor-pointer'
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+
+              <div className="flex justify-end ">
+                <Select
+                  value={table.getState().pagination.pageSize.toString()}
+                  onValueChange={(value) => table.setPageSize(Number(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Rows per page" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[5, 10, 25, 50].map((size) => (
+                      <SelectItem key={size} value={size.toString()}>
+                        {size} per page
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   );
 }

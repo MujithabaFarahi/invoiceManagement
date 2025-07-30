@@ -435,7 +435,7 @@ export default function CustomerDetail() {
   }, [selectedCurrencies, table]);
 
   return (
-    <div>
+    <div className="p-6 md:p-8">
       <Button onClick={() => navigate(-1)} variant="ghost" className="mb-4">
         <ArrowLeft /> Back
       </Button>
@@ -668,6 +668,8 @@ export default function CustomerDetail() {
                 {table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
                     <TableRow
+                      className="cursor-pointer"
+                      onClick={() => navigate(`/invoices/${row.original.id}`)}
                       key={row.id}
                       data-state={row.getIsSelected() && 'selected'}
                     >

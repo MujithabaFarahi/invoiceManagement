@@ -1,6 +1,5 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -8,7 +7,12 @@ import { getPaymentAllocations, getPaymentById } from '@/Config/firestore';
 import type { Payment, PaymentAllocation } from '@/Config/types';
 import { ArrowLeft } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
-import { Card, CardContent, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardTitle,
+} from '@/components/ui/card';
 
 export default function PaymentDetails() {
   const navigate = useNavigate();
@@ -39,7 +43,7 @@ export default function PaymentDetails() {
 
   if (loading)
     return (
-      <div>
+      <div className="p-6 md:p-8">
         <Button onClick={() => navigate(-1)} variant="ghost" className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
@@ -50,15 +54,19 @@ export default function PaymentDetails() {
     );
 
   return (
-    <div>
+    <div className="p-6 md:p-8">
       <Button onClick={() => navigate(-1)} variant="ghost" className="mb-6">
         <ArrowLeft className="h-4 w-4" /> Back
       </Button>
 
-      <h1 className="text-2xl font-bold mb-2">Payment Details</h1>
-
       <Card>
         <CardContent>
+          <CardTitle className="text-lg font-semibold">
+            Payment Information
+          </CardTitle>
+          <CardDescription className="mb-4">
+            {payment?.paymentNo}
+          </CardDescription>
           {payment && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -76,15 +84,34 @@ export default function PaymentDetails() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Amount</p>
                 <p className="font-medium">
-                  {payment.amount.toLocaleString()} {payment.currency}
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: payment.currency,
+                  }).format(payment.amount)}
                 </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Amount In JPY</p>
+                <p className="font-medium">
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'JPY',
+                  }).format(payment.amountInJPY)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Exchange Rate</p>
+                <p className="font-medium">{payment.exchangeRate}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">
                   Local Bank Charge
                 </p>
                 <p className="font-medium">
-                  {payment.localBankCharge.toLocaleString()} JPY
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'JPY',
+                  }).format(payment.localBankCharge)}
                 </p>
               </div>
               <div>
@@ -92,8 +119,10 @@ export default function PaymentDetails() {
                   Foreign Bank Charge
                 </p>
                 <p className="font-medium ">
-                  {payment.foreignBankCharge.toLocaleString()}{' '}
-                  {payment.currency}
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: payment.currency,
+                  }).format(payment.foreignBankCharge)}
                 </p>
               </div>
             </div>
@@ -131,20 +160,23 @@ export default function PaymentDetails() {
                     </div>
                     <div className="grid grid-cols-1 gap-4">
                       <div>
-                        <Label
-                          htmlFor={`alloc-${allocation.id}`}
-                          className="text-sm"
-                        >
-                          Allocated Amount
-                        </Label>
-                        <Input
-                          id={`alloc-${allocation.id}`}
-                          // type="number"
-                          // step="0.01"
-                          value={`${allocation.allocatedAmount} ${payment?.currency}`}
-                          readOnly
-                          className="mt-1"
-                        />
+                        <Label className="text-sm mb-1">Allocated Amount</Label>
+
+                        <div className="grid gap-2 grid-cols-2">
+                          <p className="bg-muted p-1 rounded-md border border-muted-foreground min-w-24 flex justify-center">
+                            {new Intl.NumberFormat('ja-JP', {
+                              style: 'currency',
+                              currency: payment?.currency || 'JPY',
+                            }).format(allocation.allocatedAmount)}{' '}
+                          </p>
+
+                          <p className="bg-muted p-1 rounded-md min-w-24 flex justify-center">
+                            {new Intl.NumberFormat('ja-JP', {
+                              style: 'currency',
+                              currency: 'JPY',
+                            }).format(allocation.recievedJPY)}{' '}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>

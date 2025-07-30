@@ -1,7 +1,12 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardTitle,
+} from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,7 +17,6 @@ import {
 } from '@/Config/firestore';
 import type { Invoice, PaymentAllocation } from '@/Config/types';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 
 export default function InvoiceDetails() {
@@ -61,7 +65,7 @@ export default function InvoiceDetails() {
 
   if (loading)
     return (
-      <div>
+      <div className="p-6 md:p-8">
         <Button onClick={() => navigate(-1)} variant="ghost" className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
@@ -74,20 +78,21 @@ export default function InvoiceDetails() {
   if (!invoice) return null;
 
   return (
-    <div>
+    <div className="p-6 md:p-8">
       <Button onClick={() => navigate(-1)} variant="ghost" className="mb-6">
         <ArrowLeft className="h-4 w-4" /> Back
       </Button>
 
-      <h1 className="text-2xl font-bold mb-2">Invoice Details</h1>
-
       <Card>
         <CardContent>
+          <CardTitle className="text-2xl font-bold">
+            Invoice Information
+          </CardTitle>
+          <CardDescription className="mb-4">
+            {invoice?.invoiceNo}
+          </CardDescription>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Invoice No</p>
-              <p className="font-medium">{invoice.invoiceNo}</p>
-            </div>
             <div>
               <p className="text-sm text-muted-foreground">Customer</p>
               <p className="font-medium">{invoice.customerName}</p>
@@ -103,27 +108,43 @@ export default function InvoiceDetails() {
               </p>
             </div>
             <div>
+              <p className="text-sm text-muted-foreground">Currency</p>
+              <p className="font-medium capitalize">{invoice.currency}</p>
+            </div>
+            <div>
               <p className="text-sm text-muted-foreground">Total Amount</p>
               <p className="font-medium">
-                {invoice.totalAmount.toLocaleString()} {invoice.currency}
+                {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: invoice?.currency || 'JPY',
+                }).format(invoice.totalAmount)}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Recieved in JPY</p>
               <p className="font-medium">
-                {(invoice.recievedJPY || 0).toLocaleString()} JPY
+                {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: 'JPY',
+                }).format(invoice.recievedJPY)}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Amount Paid</p>
               <p className="font-medium">
-                {invoice.amountPaid.toLocaleString()} {invoice.currency}
+                {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: invoice?.currency || 'JPY',
+                }).format(invoice.amountPaid)}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Balance</p>
               <p className="font-medium">
-                {invoice.balance.toLocaleString()} {invoice.currency}
+                {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: invoice?.currency || 'JPY',
+                }).format(invoice.balance)}
               </p>
             </div>
             <div>
@@ -131,19 +152,19 @@ export default function InvoiceDetails() {
                 Foreign Bank Charge
               </p>
               <p className="font-medium">
-                {invoice.foreignBankCharge
-                  ? invoice.foreignBankCharge.toLocaleString()
-                  : 0}{' '}
-                {invoice.currency}
+                {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: invoice?.currency || 'JPY',
+                }).format(invoice.foreignBankCharge)}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Local Bank Charge</p>
               <p className="font-medium">
-                {invoice.localBankCharge
-                  ? invoice.localBankCharge.toLocaleString()
-                  : 0}{' '}
-                JPY
+                {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: 'JPY',
+                }).format(invoice.localBankCharge)}
               </p>
             </div>
             {invoice.invoiceLink && (
@@ -178,24 +199,40 @@ export default function InvoiceDetails() {
                     className="border p-4 rounded-md shadow-sm"
                   >
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-muted-foreground">
+                      <span
+                        onClick={() => {
+                          navigate(`/payments/${allocation.paymentId}`);
+                        }}
+                        className="text-xs text-muted-foreground hover:scale-105 cursor-pointer"
+                      >
                         Payment ID: {allocation.paymentId}
                       </span>
                     </div>
                     <div>
                       <Label
                         htmlFor={`alloc-${allocation.id}`}
-                        className="text-sm"
+                        className="text-sm mb-1"
                       >
                         Allocated Amount
                       </Label>
-                      <Input
-                        id={`alloc-${allocation.id}`}
-                        value={`${allocation.allocatedAmount} ${invoice.currency}`}
-                        readOnly
-                        className="mt-1"
-                      />
+
+                      <div className="grid gap-2 grid-cols-2">
+                        <p className="bg-muted p-1 rounded-md border border-muted-foreground min-w-24 flex justify-center">
+                          {new Intl.NumberFormat('ja-JP', {
+                            style: 'currency',
+                            currency: invoice?.currency || 'JPY',
+                          }).format(allocation.allocatedAmount)}{' '}
+                        </p>
+
+                        <p className="bg-muted p-1 rounded-md min-w-24 flex justify-center">
+                          {new Intl.NumberFormat('ja-JP', {
+                            style: 'currency',
+                            currency: 'JPY',
+                          }).format(allocation.recievedJPY)}{' '}
+                        </p>
+                      </div>
                     </div>
+                    <div></div>
                   </div>
                 ))}
               </div>

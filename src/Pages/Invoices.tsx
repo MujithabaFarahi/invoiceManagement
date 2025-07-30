@@ -551,9 +551,9 @@ export default function Invoices() {
   }, [selectedCurrencies, table]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
+    <div className="h-screen flex flex-col py-6 gap-6">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 px-6 md:px-8">
+        <div className="">
           <h1 className="text-3xl font-bold">Invoices</h1>
           <p className="text-muted-foreground">
             Manage customer invoices and track payments
@@ -777,15 +777,16 @@ export default function Invoices() {
         </Dialog>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Invoice List</CardTitle>
-          <CardDescription>
-            All invoices and their payment status
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* <TableCell>
+      <div className="flex-1 overflow-y-auto px-6 md:px-8 space-y-6 ">
+        <Card>
+          <CardHeader>
+            <CardTitle>Invoice List</CardTitle>
+            <CardDescription>
+              All invoices and their payment status
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* <TableCell>
                     <div className="flex space-x-2 justify-center">
                       <Button
                         variant="ghost"
@@ -804,291 +805,292 @@ export default function Invoices() {
                     </div>
                   </TableCell> */}
 
-          <div className="flex flex-col md:flex-row items-end py-4 gap-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full md:w-auto">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    Customers <ChevronDown />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="max-h-64 overflow-auto"
-                >
-                  {customers.map((customer) => (
-                    <DropdownMenuCheckboxItem
-                      key={customer.id}
-                      checked={selectedCustomers.includes(customer.name)}
-                      onSelect={(e) => e.preventDefault()}
-                      onCheckedChange={(checked) => {
-                        setSelectedCustomers((prev) =>
-                          checked
-                            ? [...prev, customer.name]
-                            : prev.filter((name) => name !== customer.name)
-                        );
-                      }}
-                    >
-                      {customer.name}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    Status <ChevronDown />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {statusOptions.map((status) => (
-                    <DropdownMenuCheckboxItem
-                      key={status}
-                      checked={selectedStatuses.includes(status)}
-                      onSelect={(e) => e.preventDefault()}
-                      onCheckedChange={(checked) => {
-                        setSelectedStatuses((prev) =>
-                          checked
-                            ? [...prev, status]
-                            : prev.filter((s) => s !== status)
-                        );
-                      }}
-                      className="capitalize"
-                    >
-                      {status.replace('_', ' ')}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    Currency <ChevronDown />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuCheckboxItem
-                    checked={selectedCurrencies.length === currencies.length}
-                    onSelect={(e) => e.preventDefault()}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedCurrencies(currencies.map((c) => c.code));
-                      } else {
-                        setSelectedCurrencies([]);
-                      }
-                    }}
-                    className="capitalize font-semibold"
+            <div className="flex flex-col md:flex-row items-end py-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full md:w-auto">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      Customers <ChevronDown />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="max-h-64 overflow-auto"
                   >
-                    Select All
-                  </DropdownMenuCheckboxItem>
+                    {customers.map((customer) => (
+                      <DropdownMenuCheckboxItem
+                        key={customer.id}
+                        checked={selectedCustomers.includes(customer.name)}
+                        onSelect={(e) => e.preventDefault()}
+                        onCheckedChange={(checked) => {
+                          setSelectedCustomers((prev) =>
+                            checked
+                              ? [...prev, customer.name]
+                              : prev.filter((name) => name !== customer.name)
+                          );
+                        }}
+                      >
+                        {customer.name}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-                  <DropdownMenuSeparator />
-                  {currencies.map((currency) => (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      Status <ChevronDown />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {statusOptions.map((status) => (
+                      <DropdownMenuCheckboxItem
+                        key={status}
+                        checked={selectedStatuses.includes(status)}
+                        onSelect={(e) => e.preventDefault()}
+                        onCheckedChange={(checked) => {
+                          setSelectedStatuses((prev) =>
+                            checked
+                              ? [...prev, status]
+                              : prev.filter((s) => s !== status)
+                          );
+                        }}
+                        className="capitalize"
+                      >
+                        {status.replace('_', ' ')}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      Currency <ChevronDown />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
                     <DropdownMenuCheckboxItem
-                      key={currency.code}
-                      checked={selectedCurrencies.includes(currency.code)}
+                      checked={selectedCurrencies.length === currencies.length}
                       onSelect={(e) => e.preventDefault()}
                       onCheckedChange={(checked) => {
-                        setSelectedCurrencies((prev) =>
-                          checked
-                            ? [...prev, currency.code]
-                            : prev.filter((c) => c !== currency.code)
-                        );
-                      }}
-                      className="capitalize"
-                    >
-                      {currency.code}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Button
-                onClick={() => {
-                  setSelectedCustomers([]);
-                  setSelectedStatuses([]);
-                  setSelectedCurrencies([]);
-                  table.resetColumnFilters();
-                }}
-              >
-                <FilterX className="" />
-                Reset Filters
-              </Button>
-            </div>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="ml-auto">
-                  Columns <ChevronDown />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {table
-                  .getAllColumns()
-                  .filter((column) => column.getCanHide())
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) =>
-                          column.toggleVisibility(!!value)
+                        if (checked) {
+                          setSelectedCurrencies(currencies.map((c) => c.code));
+                        } else {
+                          setSelectedCurrencies([]);
                         }
+                      }}
+                      className="capitalize font-semibold"
+                    >
+                      Select All
+                    </DropdownMenuCheckboxItem>
+
+                    <DropdownMenuSeparator />
+                    {currencies.map((currency) => (
+                      <DropdownMenuCheckboxItem
+                        key={currency.code}
+                        checked={selectedCurrencies.includes(currency.code)}
+                        onSelect={(e) => e.preventDefault()}
+                        onCheckedChange={(checked) => {
+                          setSelectedCurrencies((prev) =>
+                            checked
+                              ? [...prev, currency.code]
+                              : prev.filter((c) => c !== currency.code)
+                          );
+                        }}
+                        className="capitalize"
                       >
-                        {column.id}
+                        {currency.code}
                       </DropdownMenuCheckboxItem>
-                    );
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button
+                  onClick={() => {
+                    setSelectedCustomers([]);
+                    setSelectedStatuses([]);
+                    setSelectedCurrencies([]);
+                    table.resetColumnFilters();
+                  }}
+                >
+                  <FilterX className="" />
+                  Reset Filters
+                </Button>
+              </div>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="ml-auto">
+                    Columns <ChevronDown />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {table
+                    .getAllColumns()
+                    .filter((column) => column.getCanHide())
+                    .map((column) => {
                       return (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
+                        <DropdownMenuCheckboxItem
+                          key={column.id}
+                          className="capitalize"
+                          checked={column.getIsVisible()}
+                          onCheckedChange={(value) =>
+                            column.toggleVisibility(!!value)
+                          }
+                        >
+                          {column.id}
+                        </DropdownMenuCheckboxItem>
                       );
                     })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      className="cursor-pointer"
-                      onClick={() => navigate(`/invoices/${row.original.id}`)}
-                      key={row.id}
-                      data-state={row.getIsSelected() && 'selected'}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => {
+                        return (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
+                        );
+                      })}
                     </TableRow>
-                  ))
-                ) : loading ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      <Spinner className="mx-auto" />
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      No Invoices Found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <div className="flex flex-col justify-between gap-4 w-full md:flex-row">
-            <div className="flex items-center gap-2 justify-center">
-              <p className="text-sm text-muted-foreground">
-                Showing{' '}
-                {table.getState().pagination.pageIndex *
-                  table.getState().pagination.pageSize +
-                  1}
-                -
-                {Math.min(
-                  (table.getState().pagination.pageIndex + 1) *
-                    table.getState().pagination.pageSize,
-                  table.getFilteredRowModel().rows.length
-                )}{' '}
-                of {table.getFilteredRowModel().rows.length} invoices
-              </p>
-            </div>
-            <Pagination>
-              <PaginationContent>
-                {/* Previous Button */}
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={() => table.previousPage()}
-                    className={
-                      !table.getCanPreviousPage()
-                        ? 'pointer-events-none opacity-50'
-                        : 'cursor-pointer'
-                    }
-                  />
-                </PaginationItem>
-
-                {/* Numbered Pages with Truncation */}
-                {paginationRange.map((item, idx) => (
-                  <PaginationItem key={idx}>
-                    {typeof item === 'string' ? (
-                      <span className="px-2 text-muted-foreground">…</span>
-                    ) : (
-                      <PaginationLink
-                        isActive={item === currentPage}
-                        onClick={() => table.setPageIndex(item - 1)}
-                        className="cursor-pointer"
-                      >
-                        {item}
-                      </PaginationLink>
-                    )}
-                  </PaginationItem>
-                ))}
-
-                {/* Next Button */}
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() => table.nextPage()}
-                    className={
-                      !table.getCanNextPage()
-                        ? 'pointer-events-none opacity-50'
-                        : 'cursor-pointer'
-                    }
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-
-            <div className="flex justify-end ">
-              <Select
-                value={table.getState().pagination.pageSize.toString()}
-                onValueChange={(value) => table.setPageSize(Number(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Rows per page" />
-                </SelectTrigger>
-                <SelectContent>
-                  {[5, 10, 25, 50].map((size) => (
-                    <SelectItem key={size} value={size.toString()}>
-                      {size} per page
-                    </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
+                </TableHeader>
+                <TableBody>
+                  {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow
+                        className="cursor-pointer"
+                        onClick={() => navigate(`/invoices/${row.original.id}`)}
+                        key={row.id}
+                        data-state={row.getIsSelected() && 'selected'}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : loading ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="h-24 text-center"
+                      >
+                        <Spinner className="mx-auto" />
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="h-24 text-center"
+                      >
+                        No Invoices Found
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
-          </div>
-        </CardFooter>
-      </Card>
+          </CardContent>
+          <CardFooter>
+            <div className="flex flex-col justify-between gap-4 w-full md:flex-row">
+              <div className="flex items-center gap-2 justify-center">
+                <p className="text-sm text-muted-foreground">
+                  Showing{' '}
+                  {table.getState().pagination.pageIndex *
+                    table.getState().pagination.pageSize +
+                    1}
+                  -
+                  {Math.min(
+                    (table.getState().pagination.pageIndex + 1) *
+                      table.getState().pagination.pageSize,
+                    table.getFilteredRowModel().rows.length
+                  )}{' '}
+                  of {table.getFilteredRowModel().rows.length} invoices
+                </p>
+              </div>
+              <Pagination>
+                <PaginationContent>
+                  {/* Previous Button */}
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => table.previousPage()}
+                      className={
+                        !table.getCanPreviousPage()
+                          ? 'pointer-events-none opacity-50'
+                          : 'cursor-pointer'
+                      }
+                    />
+                  </PaginationItem>
+
+                  {/* Numbered Pages with Truncation */}
+                  {paginationRange.map((item, idx) => (
+                    <PaginationItem key={idx}>
+                      {typeof item === 'string' ? (
+                        <span className="px-2 text-muted-foreground">…</span>
+                      ) : (
+                        <PaginationLink
+                          isActive={item === currentPage}
+                          onClick={() => table.setPageIndex(item - 1)}
+                          className="cursor-pointer"
+                        >
+                          {item}
+                        </PaginationLink>
+                      )}
+                    </PaginationItem>
+                  ))}
+
+                  {/* Next Button */}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => table.nextPage()}
+                      className={
+                        !table.getCanNextPage()
+                          ? 'pointer-events-none opacity-50'
+                          : 'cursor-pointer'
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+
+              <div className="flex justify-end ">
+                <Select
+                  value={table.getState().pagination.pageSize.toString()}
+                  onValueChange={(value) => table.setPageSize(Number(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Rows per page" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[5, 10, 25, 50].map((size) => (
+                      <SelectItem key={size} value={size.toString()}>
+                        {size} per page
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   );
 }

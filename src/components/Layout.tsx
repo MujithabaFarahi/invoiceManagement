@@ -50,7 +50,7 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-screen bg-background pt-8 md:p-0">
+    <div className="min-h-screen bg-background md:p-0">
       {/* Mobile sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetTrigger asChild>
@@ -197,7 +197,7 @@ export default function Layout() {
 
       {/* Main content */}
       <div className="md:pl-64">
-        <main className="px-4 pb-8 md:p-8">
+        <main className="">
           <Outlet />
         </main>
       </div>

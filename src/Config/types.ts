@@ -47,6 +47,7 @@ export interface Payment {
   customerName: string;
   currency: string;
   amount: number;
+  exchangeRate: number;
   allocatedAmount: number;
   amountInJPY: number;
   foreignBankCharge: number;
@@ -62,6 +63,7 @@ export interface PaymentAllocation {
   allocatedAmount: number;
   foreignBankCharge: number;
   localBankCharge: number;
+  exchangeRate: number;
   recievedJPY: number;
   createdAt: Date;
 }
