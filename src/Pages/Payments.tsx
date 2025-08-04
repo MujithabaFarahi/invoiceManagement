@@ -362,16 +362,16 @@ export default function Payments() {
 
     const exchangeRate = toFixed2(formData.exchangeRate || '0');
 
-    if (totalAllocated > amount) {
+    if (totalAllocated !== amount) {
       toast.error('Error', {
-        description: 'Allocated amount exceeds payment amount',
+        description: 'Allocated amount does not match payment amount',
       });
       return;
     }
 
-    if (totalJPY > amountInJPY) {
+    if (totalJPY !== amountInJPY) {
       toast.error('Error', {
-        description: 'Allocated JPY amount exceeds payment amount',
+        description: 'Allocated JPY amount does not match payment amount',
       });
       return;
     }
@@ -380,6 +380,7 @@ export default function Payments() {
     const hasOverAllocated = nonZeroAllocations.some(
       (inv) => inv.allocatedAmount > inv.balance
     );
+
     if (hasOverAllocated) {
       toast.error('Error', {
         description:
