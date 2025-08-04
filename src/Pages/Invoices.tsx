@@ -139,7 +139,7 @@ export default function Invoices() {
 
   useEffect(() => {
     const unsubscribe = listenToInvoices(dispatch);
-    return () => unsubscribe(); // cleanup listener
+    return () => unsubscribe();
   }, [dispatch]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
