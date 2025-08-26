@@ -1122,18 +1122,23 @@ export default function Payments() {
                             ...formData,
                             JPYamount: e.target.value,
                             amount: e.target.value,
-                            exchangeRate: '1',
                           });
+
+                          allocatePaymentToInvoices(
+                            e.target.value || '0',
+                            e.target.value || '0',
+                            formData.foreignBankCharge,
+                            formData.localBankCharge
+                          );
                         } else {
                           setFormData({ ...formData, amount: e.target.value });
+                          allocatePaymentToInvoices(
+                            e.target.value || '0',
+                            formData.JPYamount,
+                            formData.foreignBankCharge,
+                            formData.localBankCharge
+                          );
                         }
-
-                        allocatePaymentToInvoices(
-                          e.target.value || '0',
-                          formData.JPYamount,
-                          formData.foreignBankCharge,
-                          formData.localBankCharge
-                        );
                       }}
                       placeholder="0.00"
                       required
@@ -1150,6 +1155,7 @@ export default function Payments() {
                       id="foreignBankCharge"
                       type="number"
                       step="0.01"
+                      disabled={!formData.customerId}
                       value={formData.foreignBankCharge}
                       onChange={(e) => {
                         setFormData({
@@ -1173,7 +1179,7 @@ export default function Payments() {
                     <Input
                       id="JPYamount"
                       type="number"
-                      // disabled={!formData.amount}
+                      disabled={!formData.customerId}
                       value={formData.JPYamount}
                       placeholder="0"
                       required
@@ -1200,7 +1206,7 @@ export default function Payments() {
                       type="number"
                       step="0.01"
                       readOnly
-                      disabled={!formData.amount}
+                      disabled
                       value={formData.exchangeRate}
                       onChange={(e) => {
                         const value = parseFloat(e.target.value);
@@ -1232,6 +1238,7 @@ export default function Payments() {
                       type="number"
                       step="0.01"
                       value={formData.localBankCharge}
+                      disabled={!formData.JPYamount}
                       onChange={(e) => {
                         setFormData({
                           ...formData,

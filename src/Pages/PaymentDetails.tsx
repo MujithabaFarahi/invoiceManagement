@@ -91,14 +91,17 @@ export default function PaymentDetails() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Amount In JPY</p>
-                <p className="font-medium">
+                <p className="text-sm text-muted-foreground">
+                  Foreign Bank Charge
+                </p>
+                <p className="font-medium ">
                   {new Intl.NumberFormat('en-US', {
                     style: 'currency',
-                    currency: 'JPY',
-                  }).format(payment.amountInJPY)}
+                    currency: payment.currency,
+                  }).format(payment.foreignBankCharge)}
                 </p>
               </div>
+
               <div>
                 <p className="text-sm text-muted-foreground">Exchange Rate</p>
                 <p className="font-medium">{payment.exchangeRate}</p>
@@ -115,14 +118,12 @@ export default function PaymentDetails() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">
-                  Foreign Bank Charge
-                </p>
-                <p className="font-medium ">
+                <p className="text-sm text-muted-foreground">Received JPY</p>
+                <p className="font-medium">
                   {new Intl.NumberFormat('en-US', {
                     style: 'currency',
-                    currency: payment.currency,
-                  }).format(payment.foreignBankCharge)}
+                    currency: 'JPY',
+                  }).format(payment.amountInJPY)}
                 </p>
               </div>
             </div>
