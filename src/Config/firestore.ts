@@ -14,7 +14,6 @@ import {
   type DocumentData,
   limit,
   startAfter,
-  Timestamp,
 } from 'firebase/firestore';
 import type {
   Currency,
@@ -443,39 +442,39 @@ export const getLastPaymentByCustomerId = async (
   } as Payment;
 };
 
-export const migratePaymentDates = async () => {
-  const snapshot = await getDocs(collection(db, 'invoices'));
+// export const migratePaymentDates = async () => {
+//   const snapshot = await getDocs(collection(db, 'invoices'));
 
-  const updates = snapshot.docs.map(async (d) => {
-    const data = d.data() as DocumentData;
+//   const updates = snapshot.docs.map(async (d) => {
+//     const data = d.data() as DocumentData;
 
-    // ✅ Skip if already a Timestamp
-    if (data.date instanceof Timestamp) {
-      return;
-    }
+//     // ✅ Skip if already a Timestamp
+//     if (data.date instanceof Timestamp) {
+//       return;
+//     }
 
-    // Only process if it's a string
-    if (typeof data.date === 'string') {
-      try {
-        // Parse string into JS Date (works for "YYYY/MM/DD")
-        const parsedDate = new Date(data.date);
+//     // Only process if it's a string
+//     if (typeof data.date === 'string') {
+//       try {
+//         // Parse string into JS Date (works for "YYYY/MM/DD")
+//         const parsedDate = new Date(data.date);
 
-        if (isNaN(parsedDate.getTime())) {
-          console.warn(`Skipping invalid date for doc ${d.id}:`, data.date);
-          return;
-        }
+//         if (isNaN(parsedDate.getTime())) {
+//           console.warn(`Skipping invalid date for doc ${d.id}:`, data.date);
+//           return;
+//         }
 
-        // Convert to Firestore Timestamp
-        const ts = Timestamp.fromDate(parsedDate);
+//         // Convert to Firestore Timestamp
+//         const ts = Timestamp.fromDate(parsedDate);
 
-        await updateDoc(doc(db, 'invoices', d.id), { date: ts });
-        console.log(`✅ Updated ${d.id}: ${data.date} → ${ts.toDate()}`);
-      } catch (err) {
-        console.error(`❌ Failed to update ${d.id}:`, err);
-      }
-    }
-  });
+//         await updateDoc(doc(db, 'invoices', d.id), { date: ts });
+//         console.log(`✅ Updated ${d.id}: ${data.date} → ${ts.toDate()}`);
+//       } catch (err) {
+//         console.error(`❌ Failed to update ${d.id}:`, err);
+//       }
+//     }
+//   });
 
-  await Promise.all(updates);
-  console.log('🎉 Migration complete (idempotent)');
-};
+//   await Promise.all(updates);
+//   console.log('🎉 Migration complete (idempotent)');
+// };
