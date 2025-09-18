@@ -21,7 +21,7 @@ export interface Invoice {
   invoiceLink?: string;
   balance: number;
   status: 'pending' | 'partially_paid' | 'paid';
-  date: string;
+  date: Date;
   foreignBankCharge: number;
   localBankCharge: number;
   createdAt: Date;
@@ -42,7 +42,7 @@ export interface Currency {
 export interface Payment {
   id: string;
   paymentNo: string;
-  date: string;
+  date: Date;
   customerId: string;
   customerName: string;
   currency: string;

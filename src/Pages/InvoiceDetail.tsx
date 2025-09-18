@@ -99,7 +99,7 @@ export default function InvoiceDetails() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Date</p>
-              <p className="font-medium">{invoice.date}</p>
+              <p className="font-medium">{invoice.date.toLocaleDateString()}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Status</p>

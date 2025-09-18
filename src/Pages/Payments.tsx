@@ -1,5 +1,3 @@
-'use client';
-
 import type React from 'react';
 
 import { useEffect, useState } from 'react';
@@ -232,7 +230,7 @@ export default function Payments() {
     });
 
     const totalFormJPY =
-      Math.floor((amount - foreignBankCharge) * exchangeRate) - localBankCharge;
+      Math.round((amount - foreignBankCharge) * exchangeRate) - localBankCharge;
     const diff = totalFormJPY - totalJPY;
 
     const exRate = toFixed2(exchangeRate);
@@ -403,7 +401,7 @@ export default function Payments() {
       // 1. Add Payment
       const paymentData = {
         paymentNo: formData.paymentNo,
-        date: formData.date.toLocaleDateString('ja-JP'),
+        date: formData.date,
         customerId: formData.customerId,
         customerName: customer.name,
         currency: formData.currency,
@@ -738,7 +736,9 @@ export default function Payments() {
         );
       },
       cell: ({ row }) => (
-        <div className="capitalize">{row.getValue('date')}</div>
+        <div className="capitalize">
+          {new Date(row.getValue('date')).toLocaleDateString()}
+        </div>
       ),
     },
     {

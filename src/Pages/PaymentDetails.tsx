@@ -75,7 +75,9 @@ export default function PaymentDetails() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Date</p>
-                <p className="font-medium">{payment.date}</p>
+                <p className="font-medium">
+                  {payment.date.toLocaleDateString()}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Currency</p>

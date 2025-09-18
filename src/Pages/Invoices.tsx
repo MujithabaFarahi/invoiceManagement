@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 
 import { useEffect, useState } from 'react';
@@ -96,7 +94,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '@/Config/firebase';
 import { useNavigate } from 'react-router-dom';
-import { getPaginationRange, toFixed2 } from '@/lib/utils';
+import { cn, getPaginationRange, toFixed2 } from '@/lib/utils';
 
 export default function Invoices() {
   const navigate = useNavigate();
@@ -121,13 +119,13 @@ export default function Invoices() {
 
   const listenToInvoices = (dispatch: AppDispatch) => {
     const invoicesRef = collection(db, 'invoices');
-    const q = query(invoicesRef, orderBy('createdAt', 'desc'));
+    const q = query(invoicesRef, orderBy('date', 'desc'));
 
     const unsub = onSnapshot(q, (snapshot) => {
       const invoices = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-        // date: doc.data().date.toDate(),
+        date: doc.data().date.toDate(),
         createdAt: doc.data().createdAt.toDate(),
       })) as Invoice[];
 
@@ -202,7 +200,7 @@ export default function Invoices() {
         balance: totalAmount,
         recievedJPY: 0,
         status: 'pending' as const,
-        date: formData.date.toLocaleDateString('ja-JP'),
+        date: formData.date,
         foreignBankCharge: 0,
         localBankCharge: 0,
       };
@@ -313,6 +311,7 @@ export default function Invoices() {
         return (
           <Button
             variant="ghost"
+            className="w-full"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           >
             No
@@ -321,7 +320,9 @@ export default function Invoices() {
         );
       },
       cell: ({ row }) => (
-        <div className="capitalize">{row.getValue('invoiceNo')}</div>
+        <div className="capitalize text-center">
+          {row.getValue('invoiceNo')}
+        </div>
       ),
     },
     {
@@ -330,6 +331,7 @@ export default function Invoices() {
         return (
           <Button
             variant="ghost"
+            className="w-full"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           >
             Date
@@ -338,7 +340,9 @@ export default function Invoices() {
         );
       },
       cell: ({ row }) => (
-        <div className="capitalize">{row.getValue('date')}</div>
+        <div className="capitalize">
+          {new Date(row.getValue('date')).toLocaleDateString()}
+        </div>
       ),
     },
     {
@@ -360,7 +364,7 @@ export default function Invoices() {
         return filterValue.includes(row.getValue(columnId));
       },
       cell: ({ row }) => (
-        <div className="capitalize">{row.getValue('currency')}</div>
+        <div className="capitalize text-center">{row.getValue('currency')}</div>
       ),
     },
     {
@@ -369,6 +373,7 @@ export default function Invoices() {
         return (
           <Button
             variant="ghost"
+            className="w-full"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           >
             Amount
@@ -383,12 +388,12 @@ export default function Invoices() {
           style: 'currency',
           currency: row.getValue('currency') || 'USD',
         }).format(amount);
-        return <div>{formatted}</div>;
+        return <div className="text-center">{formatted}</div>;
       },
     },
     {
       accessorKey: 'amountPaid',
-      header: 'Paid',
+      header: () => <div className="text-center">Paid</div>,
       cell: ({ row }) => {
         const amount = toFixed2(row.getValue('amountPaid'));
         // Format the amount as a dollar amount
@@ -396,12 +401,12 @@ export default function Invoices() {
           style: 'currency',
           currency: row.getValue('currency') || 'USD',
         }).format(amount);
-        return <div>{formatted}</div>;
+        return <div className="text-center">{formatted}</div>;
       },
     },
     {
       accessorKey: 'balance',
-      header: () => <div>Balance</div>,
+      header: () => <div className="text-center">Balance</div>,
       cell: ({ row }) => {
         const amount = toFixed2(row.getValue('balance'));
         // Format the amount as a dollar amount
@@ -411,9 +416,10 @@ export default function Invoices() {
         }).format(amount);
         return (
           <div
-            className={
+            className={cn(
+              'text-center',
               amount > 0 ? 'text-orange-600 font-medium' : 'text-green-600'
-            }
+            )}
           >
             {formatted}
           </div>
